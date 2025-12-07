@@ -4,9 +4,7 @@ use iced::mouse;
 use iced::widget::canvas::{self, path, Canvas};
 use iced::{
     executor, theme,
-    widget::{
-        button, column, container, pick_list, progress_bar, row, svg, text, text_input, Container,
-    },
+    widget::{button, column, container, progress_bar, row, svg, text, text_input, Container},
     Alignment, Application, Border, Color, Command, Element, Font, Length, Settings, Size, Theme,
 };
 use std::sync::{
@@ -51,8 +49,8 @@ fn load_logo() -> svg::Handle {
 }
 
 pub struct VanityApp {
-    // 链选择
-    selected_chain: ChainType,
+    // 链选择（多选）
+    selected_chains: Vec<ChainType>,
 
     // 配置
     patterns_input: String,
@@ -86,7 +84,8 @@ pub struct VanityApp {
     pause_signal: Arc<AtomicBool>,
     gen_count: Arc<AtomicU64>,
     found_count: Arc<AtomicU64>,
-    vanity_cache: Arc<Mutex<Option<VanityAddress>>>,
+    // 缓存匹配结果，附带完整三链展示文本
+    vanity_cache: Arc<Mutex<Option<(VanityAddress, String)>>>,
 
     // 最近发现的靓号（用于手动保存）
     last_found: Option<VanityAddress>,
@@ -101,7 +100,7 @@ pub struct VanityApp {
 impl Default for VanityApp {
     fn default() -> Self {
         Self {
-            selected_chain: ChainType::Tron,
+            selected_chains: vec![ChainType::Tron],
             batch_size: "1000".to_string(),
             thread_count: num_cpus::get().to_string(),
             patterns_input: "1111,2222,3333,4444,5555,6666,7777,8888,9999,0000".to_string(),
@@ -143,7 +142,7 @@ impl VanityApp {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    ChainChanged(ChainType),
+    ChainToggled(ChainType),
     PatternsChanged(String),
     BatchSizeChanged(String),
     ThreadCountChanged(String),
@@ -172,7 +171,13 @@ impl Application for VanityApp {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
-            Message::ChainChanged(chain) => self.selected_chain = chain,
+            Message::ChainToggled(chain) => {
+                if let Some(pos) = self.selected_chains.iter().position(|c| c == &chain) {
+                    self.selected_chains.remove(pos);
+                } else {
+                    self.selected_chains.push(chain);
+                }
+            }
             Message::PatternsChanged(input) => self.patterns_input = input,
             Message::BatchSizeChanged(input) => self.batch_size = input,
             Message::ThreadCountChanged(input) => self.thread_count = input,
@@ -196,7 +201,7 @@ impl Application for VanityApp {
                 }
             }
             Message::StartPressed => {
-                if !self.is_running {
+                if !self.is_running && !self.selected_chains.is_empty() {
                     self.is_running = true;
                     self.is_paused = false;
                     self.total_generated = 0;
@@ -206,16 +211,22 @@ impl Application for VanityApp {
                     self.start_time = Some(Instant::now());
                     self.gen_start_time = Some(Instant::now());
                     self.log_messages.clear();
+                    
+                    let chains_str = self.selected_chains
+                        .iter()
+                        .map(|c| c.label())
+                        .collect::<Vec<_>>()
+                        .join(" | ");
                     self.log_messages.push(format!(
-                        "▶ {} 启动，开始搜索靓号...",
-                        self.selected_chain.label()
+                        "▶ [{}] 启动，开始搜索靓号...",
+                        chains_str
                     ));
 
                     let stop_signal = Arc::clone(&self.stop_signal);
                     let pause_signal = Arc::clone(&self.pause_signal);
                     let gen_count = Arc::clone(&self.gen_count);
                     let found_count = Arc::clone(&self.found_count);
-                    let chain = self.selected_chain;
+                    let selected_chains = self.selected_chains.clone();
 
                     stop_signal.store(false, Ordering::Relaxed);
                     pause_signal.store(false, Ordering::Relaxed);
@@ -243,7 +254,7 @@ impl Application for VanityApp {
                         let found = Arc::clone(&found_count);
                         let vanity_cache = Arc::clone(&self.vanity_cache);
                         let patterns_clone = patterns.clone();
-                        let chain_copy = chain;
+                        let chains_copy = selected_chains.clone();
                         let save_path = self.save_file_path.clone();
 
                         thread::spawn(move || loop {
@@ -257,16 +268,40 @@ impl Application for VanityApp {
                             }
 
                             for _ in 0..batch {
-                                let addr = generate_vanity_address(chain_copy);
+                                // 生成单个助记词对应的三种链地址
+                                let mnemonic = generate_mnemonic();
+                                let multi_addr = generate_from_mnemonic_all(&mnemonic);
+                                
                                 let patterns_refs: Vec<&str> =
                                     patterns_clone.iter().map(|s| s.as_str()).collect();
-                                if is_vanity_address(&addr.address, &patterns_refs) {
-                                    found.fetch_add(1, Ordering::Relaxed);
-                                    // 保存到用户指定的文件
-                                    let _ = save_address_to_file(&save_path, &addr, true);
-                                    // 缓存靓号信息用于 UI 显示
-                                    if let Ok(mut cache) = vanity_cache.lock() {
-                                        *cache = Some(addr.clone());
+                                
+                                // 对每个选中的链进行匹配
+                                let addresses = vec![
+                                    (&multi_addr.tron, ChainType::Tron),
+                                    (&multi_addr.evm, ChainType::Evm),
+                                    (&multi_addr.sol, ChainType::Sol),
+                                ];
+                                
+                                for (addr, chain_type) in addresses {
+                                    if chains_copy.contains(&chain_type)
+                                        && is_vanity_address(&addr.address, &patterns_refs)
+                                    {
+                                        found.fetch_add(1, Ordering::Relaxed);
+                                        let _ =
+                                            save_multi_address_to_file(&save_path, &multi_addr, chain_type);
+
+                                        let display = format!(
+                                            "✨ 发现靓号: [{}] {} | TRON: {} | EVM: {} | SOL: {}",
+                                            chain_type.label(),
+                                            addr.address,
+                                            multi_addr.tron.address,
+                                            multi_addr.evm.address,
+                                            multi_addr.sol.address,
+                                        );
+
+                                        if let Ok(mut cache) = vanity_cache.lock() {
+                                            *cache = Some((addr.clone(), display));
+                                        }
                                     }
                                 }
                                 gen.fetch_add(1, Ordering::Relaxed);
@@ -324,15 +359,8 @@ impl Application for VanityApp {
 
                 // 检查是否有新的靓号
                 if let Ok(mut cache) = self.vanity_cache.lock() {
-                    if let Some(vanity_info) = cache.take() {
-                        self.log_messages.insert(
-                            0,
-                            format!(
-                                "✨ 发现靓号: [{}] {}",
-                                vanity_info.chain.label(),
-                                vanity_info.address
-                            ),
-                        );
+                    if let Some((vanity_info, display)) = cache.take() {
+                        self.log_messages.insert(0, display);
                         self.last_found = Some(vanity_info);
                     }
                 }
@@ -364,6 +392,33 @@ impl Application for VanityApp {
     fn view(&self) -> Element<'_, Message> {
         const CHAINS: [ChainType; 3] = [ChainType::Tron, ChainType::Evm, ChainType::Sol];
 
+        // 构建链选择按钮组（多选）
+        let chain_buttons = CHAINS
+            .iter()
+            .fold(row![].spacing(8), |row, &chain| {
+                let is_selected = self.selected_chains.contains(&chain);
+                let btn = if is_selected {
+                    button(
+                        text(chain.label())
+                            .size(14)
+                            .style(iced::theme::Text::Color(Color::from_rgb8(255, 255, 255))),
+                    )
+                    .padding(10)
+                    .style(iced::theme::Button::Positive)
+                    .on_press(Message::ChainToggled(chain))
+                } else {
+                    button(
+                        text(chain.label())
+                            .size(14)
+                            .style(iced::theme::Text::Color(Color::from_rgb8(142, 162, 185))),
+                    )
+                    .padding(10)
+                    .style(iced::theme::Button::Secondary)
+                    .on_press(Message::ChainToggled(chain))
+                };
+                row.push(btn)
+            });
+
         let header = row![
             svg(self.logo_handle.clone())
                 .width(Length::Fixed(40.0))
@@ -379,10 +434,11 @@ impl Application for VanityApp {
             .spacing(4)
             .width(Length::Fill)
             .align_items(Alignment::Start),
-            pick_list(CHAINS, Some(self.selected_chain), Message::ChainChanged)
-                .placeholder("选择链")
-                .padding(10)
-                .width(Length::Fixed(150.0)),
+            column![
+                text("选择链").size(12).style(iced::theme::Text::Color(accent())),
+                chain_buttons,
+            ]
+            .spacing(6),
         ]
         .spacing(12)
         .align_items(Alignment::Center);
@@ -429,13 +485,14 @@ impl Application for VanityApp {
 
         let controls = row![
             primary_button("启动", Message::StartPressed),
+            danger_button("停止", Message::StopPressed),
             ghost_button(
                 if self.is_paused { "继续" } else { "暂停" },
                 Message::PausePressed
             ),
-            danger_button("停止", Message::StopPressed),
         ]
-        .spacing(12);
+        .spacing(14)
+        .align_items(Alignment::Center);
 
         let uptime = self.start_time.map(|t| t.elapsed().as_secs()).unwrap_or(0);
 

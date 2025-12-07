@@ -261,22 +261,39 @@ fn run_vanity_generator(config: &Config) {
         }
 
         let batch: Vec<_> = (0..config.batch_size)
-            .map(|_| generate_tron_address())
+            .map(|_| {
+                let mnemonic = generate_mnemonic();
+                generate_from_mnemonic_all(&mnemonic)
+            })
             .collect();
 
-        for tron in batch {
+        for multi in batch {
             if should_stop.load(Ordering::Relaxed) {
                 break;
             }
 
             counter.fetch_add(1, Ordering::Relaxed);
 
-            if is_vanity_address(&tron.address, &patterns) {
-                found.fetch_add(1, Ordering::Relaxed);
-                print_address(&tron, true);
-                let _ = save_address_to_file(&config.output_file, &tron, true);
-            } else if config.save_all {
-                let _ = save_address_to_file(&config.output_file, &tron, false);
+            // 检查三条链是否匹配
+            let hits = [
+                (&multi.tron, ChainType::Tron),
+                (&multi.evm, ChainType::Evm),
+                (&multi.sol, ChainType::Sol),
+            ];
+
+            let mut matched = false;
+            for (addr, chain) in hits {
+                if is_vanity_address(&addr.address, &patterns) {
+                    matched = true;
+                    found.fetch_add(1, Ordering::Relaxed);
+                    print_multi_address(&multi, chain);
+                    let _ = save_multi_address_to_file(&config.output_file, &multi, chain);
+                }
+            }
+
+            if !matched && config.save_all {
+                // 默认保存 TRON 以兼容旧格式
+                let _ = save_address_to_file(&config.output_file, &multi.tron, false);
             }
         }
     }

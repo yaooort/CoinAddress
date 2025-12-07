@@ -15,16 +15,15 @@ path = "src/gui.rs"
 [dependencies]
 # 密码学和哈希
 sha2 = "0.10"
-ripemd = "0.1"
 k256 = { version = "0.13", features = ["std"] }
 rand = "0.8"
 hex = "0.4"
 
 # Bip39 助记词和密钥派生
-bip39 = "2.2"
+bip39 = "1.2"
+bip32 = { version = "0.5", features = ["secp256k1"] }
 hmac = "0.12"
 pbkdf2 = "0.12"
-bip32 = { version = "0.5", features = ["secp256k1"] }
 
 # Base58编码
 bs58 = "0.5"
@@ -32,6 +31,7 @@ bs58 = "0.5"
 # Keccak 与 ed25519
 tiny-keccak = { version = "2.0", features = ["keccak"] }
 ed25519-dalek = { version = "1", features = ["std", "rand"] }
+ed25519-dalek-bip32 = "0.1"
 
 # 多线程和并发
 rayon = "1.7"
