@@ -80,12 +80,12 @@ jobs:
           ls -lh dist/*.deb
 
       - name: Upload DEB Package
-        uses: softprops/action-gh-release@v1
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          DEB_VERSION="${VERSION#v}"
+          gh release upload "$VERSION" "dist/tron-vanity_${DEB_VERSION}_amd64.deb" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_amd64.deb
 
   # Linux ARM64 DEB
   build-linux-arm64:
@@ -139,12 +139,12 @@ jobs:
           ls -lh dist/*.deb
 
       - name: Upload DEB Package
-        uses: softprops/action-gh-release@v1
+        run: |
+          VERSION="${{ needs.create-release.outputs.version }}"
+          DEB_VERSION="${VERSION#v}"
+          gh release upload "$VERSION" "dist/tron-vanity_${DEB_VERSION}_arm64.deb" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_arm64.deb
 
   # macOS x86_64 DMG
   build-macos-x86_64:
@@ -280,12 +280,13 @@ jobs:
         shell: pwsh
 
       - name: Upload MSI Installer
-        uses: softprops/action-gh-release@v1
+        run: |
+          $VERSION = "${{ needs.create-release.outputs.version }}"
+          $MSI_VERSION = $VERSION -replace 'v', ''
+          gh release upload "$VERSION" "dist/tron-vanity_${MSI_VERSION}_windows-x86_64.msi" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.msi
+        shell: pwsh
 
   # Windows ARM64 MSI
   build-windows-arm64:
@@ -345,12 +346,13 @@ jobs:
         shell: pwsh
 
       - name: Upload MSI Installer
-        uses: softprops/action-gh-release@v1
+        run: |
+          $VERSION = "${{ needs.create-release.outputs.version }}"
+          $MSI_VERSION = $VERSION -replace 'v', ''
+          gh release upload "$VERSION" "dist/tron-vanity_${MSI_VERSION}_windows-arm64.msi" --clobber
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tag_name: ${{ needs.create-release.outputs.version }}
-          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.msi
+        shell: pwsh
 
   # 发布完成通知
   publish-complete:
