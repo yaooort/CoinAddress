@@ -93,6 +93,9 @@ pub struct VanityApp {
 
     // 内嵌 logo 资源
     logo_handle: svg::Handle,
+
+    // 保存文件路径
+    save_file_path: String,
 }
 
 impl Default for VanityApp {
@@ -123,6 +126,17 @@ impl Default for VanityApp {
             vanity_cache: Arc::new(Mutex::new(None)),
             last_found: None,
             logo_handle: load_logo(),
+            save_file_path: Self::default_save_path(),
+        }
+    }
+}
+
+impl VanityApp {
+    fn default_save_path() -> String {
+        if let Some(home) = dirs::home_dir() {
+            home.join("Desktop").join("vanity_addresses.txt").to_string_lossy().to_string()
+        } else {
+            "vanity_addresses.txt".to_string()
         }
     }
 }
@@ -133,11 +147,11 @@ pub enum Message {
     PatternsChanged(String),
     BatchSizeChanged(String),
     ThreadCountChanged(String),
+    ChooseSaveFile,
+    SaveFileSelected(Option<std::path::PathBuf>),
     StartPressed,
     PausePressed,
     StopPressed,
-    SaveCurrent,
-    SaveResult(String),
     Tick,
     VanityFound(String),
 }
@@ -162,6 +176,25 @@ impl Application for VanityApp {
             Message::PatternsChanged(input) => self.patterns_input = input,
             Message::BatchSizeChanged(input) => self.batch_size = input,
             Message::ThreadCountChanged(input) => self.thread_count = input,
+            Message::ChooseSaveFile => {
+                return Command::perform(
+                    async {
+                        rfd::AsyncFileDialog::new()
+                            .set_file_name("vanity_addresses.txt")
+                            .set_title("选择保存文件")
+                            .save_file()
+                            .await
+                            .map(|handle| handle.path().to_path_buf())
+                    },
+                    Message::SaveFileSelected,
+                );
+            }
+            Message::SaveFileSelected(path) => {
+                if let Some(path) = path {
+                    self.save_file_path = path.to_string_lossy().to_string();
+                    self.log_messages.push(format!("✓ 保存路径: {}", self.save_file_path));
+                }
+            }
             Message::StartPressed => {
                 if !self.is_running {
                     self.is_running = true;
@@ -211,7 +244,7 @@ impl Application for VanityApp {
                         let vanity_cache = Arc::clone(&self.vanity_cache);
                         let patterns_clone = patterns.clone();
                         let chain_copy = chain;
-                        let filename = format!("{}_vanity.txt", chain_copy.label().to_lowercase());
+                        let save_path = self.save_file_path.clone();
 
                         thread::spawn(move || loop {
                             if stop.load(Ordering::Relaxed) {
@@ -229,9 +262,9 @@ impl Application for VanityApp {
                                     patterns_clone.iter().map(|s| s.as_str()).collect();
                                 if is_vanity_address(&addr.address, &patterns_refs) {
                                     found.fetch_add(1, Ordering::Relaxed);
-                                    // 保存到文件
-                                    let _ = save_address_to_file(&filename, &addr, true);
-                                    // 缓存靓号信息用于 UI 显示 / 手动保存
+                                    // 保存到用户指定的文件
+                                    let _ = save_address_to_file(&save_path, &addr, true);
+                                    // 缓存靓号信息用于 UI 显示
                                     if let Ok(mut cache) = vanity_cache.lock() {
                                         *cache = Some(addr.clone());
                                     }
@@ -281,39 +314,6 @@ impl Application for VanityApp {
                         );
                     }
                 }
-            }
-            Message::SaveCurrent => {
-                if let Some(addr) = self.last_found.clone() {
-                    return Command::perform(
-                        async move {
-                            let target = rfd::FileDialog::new()
-                                .set_title("保存靓号到文本")
-                                .set_file_name("vanity.txt")
-                                .save_file();
-
-                            match target {
-                                Some(path) => {
-                                    let res = save_address_to_file(
-                                        path.to_string_lossy().as_ref(),
-                                        &addr,
-                                        true,
-                                    );
-                                    match res {
-                                        Ok(_) => format!("✅ 已保存: {}", path.display()),
-                                        Err(e) => format!("❌ 保存失败: {}", e),
-                                    }
-                                }
-                                None => "已取消保存".to_string(),
-                            }
-                        },
-                        Message::SaveResult,
-                    );
-                } else {
-                    self.log_messages.insert(0, "暂无可保存的靓号".to_string());
-                }
-            }
-            Message::SaveResult(msg) => {
-                self.log_messages.insert(0, msg);
             }
             Message::Tick => {
                 let stats = self.monitor.get_stats();
@@ -399,6 +399,19 @@ impl Application for VanityApp {
         ]
         .spacing(8);
 
+        let file_path_row = column![
+            row![
+                text("保存路径:").size(14).style(iced::theme::Text::Color(accent())),
+                ghost_button("选择文件", Message::ChooseSaveFile),
+            ]
+            .spacing(12)
+            .align_items(Alignment::Center),
+            text(&self.save_file_path)
+                .size(12)
+                .style(iced::theme::Text::Color(Color::from_rgb8(160, 180, 200))),
+        ]
+        .spacing(6);
+
         let batch_threads_row = row![
             text("批处理大小").size(14).width(Length::Shrink),
             text_input("1000", &self.batch_size)
@@ -421,7 +434,6 @@ impl Application for VanityApp {
                 Message::PausePressed
             ),
             danger_button("停止", Message::StopPressed),
-            ghost_button("保存当前靓号", Message::SaveCurrent),
         ]
         .spacing(12);
 
@@ -486,7 +498,7 @@ impl Application for VanityApp {
 
         let layout = column![
             header,
-            card(column![patterns_row, batch_threads_row].spacing(12)),
+            card(column![file_path_row, patterns_row, batch_threads_row].spacing(12)),
             card(column![controls].spacing(8)),
             card(stat_cards),
             system_card,
