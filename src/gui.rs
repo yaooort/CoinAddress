@@ -1,6 +1,12 @@
+#![cfg_attr(target_os = "windows", windows_subsystem = "windows")]
+
+use iced::mouse;
+use iced::widget::canvas::{self, path, Canvas};
 use iced::{
     executor, theme,
-    widget::{button, checkbox, column, container, progress_bar, row, text, text_input, Container},
+    widget::{
+        button, column, container, pick_list, progress_bar, row, text, text_input, Container,
+    },
     Alignment, Application, Border, Color, Command, Element, Font, Length, Settings, Size, Theme,
 };
 use std::sync::{
@@ -36,11 +42,13 @@ fn surface_bg() -> Color {
 }
 
 pub struct VanityApp {
+    // 链选择
+    selected_chain: ChainType,
+
     // 配置
     patterns_input: String,
     batch_size: String,
     thread_count: String,
-    save_all: bool,
 
     // 状态
     is_running: bool,
@@ -69,16 +77,19 @@ pub struct VanityApp {
     pause_signal: Arc<AtomicBool>,
     gen_count: Arc<AtomicU64>,
     found_count: Arc<AtomicU64>,
-    vanity_cache: Arc<Mutex<Option<String>>>,
+    vanity_cache: Arc<Mutex<Option<VanityAddress>>>,
+
+    // 最近发现的靓号（用于手动保存）
+    last_found: Option<VanityAddress>,
 }
 
 impl Default for VanityApp {
     fn default() -> Self {
         Self {
+            selected_chain: ChainType::Tron,
             batch_size: "1000".to_string(),
             thread_count: num_cpus::get().to_string(),
             patterns_input: "1111,2222,3333,4444,5555,6666,7777,8888,9999,0000".to_string(),
-            save_all: false,
             is_running: false,
             is_paused: false,
             start_time: None,
@@ -98,19 +109,22 @@ impl Default for VanityApp {
             gen_count: Arc::new(AtomicU64::new(0)),
             found_count: Arc::new(AtomicU64::new(0)),
             vanity_cache: Arc::new(Mutex::new(None)),
+            last_found: None,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    ChainChanged(ChainType),
     PatternsChanged(String),
     BatchSizeChanged(String),
     ThreadCountChanged(String),
-    SaveAllToggled(bool),
     StartPressed,
     PausePressed,
     StopPressed,
+    SaveCurrent,
+    SaveResult(String),
     Tick,
     VanityFound(String),
 }
@@ -131,10 +145,10 @@ impl Application for VanityApp {
 
     fn update(&mut self, message: Message) -> Command<Message> {
         match message {
+            Message::ChainChanged(chain) => self.selected_chain = chain,
             Message::PatternsChanged(input) => self.patterns_input = input,
             Message::BatchSizeChanged(input) => self.batch_size = input,
             Message::ThreadCountChanged(input) => self.thread_count = input,
-            Message::SaveAllToggled(checked) => self.save_all = checked,
             Message::StartPressed => {
                 if !self.is_running {
                     self.is_running = true;
@@ -146,12 +160,16 @@ impl Application for VanityApp {
                     self.start_time = Some(Instant::now());
                     self.gen_start_time = Some(Instant::now());
                     self.log_messages.clear();
-                    self.log_messages.push("▶ 生成启动... 开始搜索靓号...".to_string());
+                    self.log_messages.push(format!(
+                        "▶ {} 启动，开始搜索靓号...",
+                        self.selected_chain.label()
+                    ));
 
                     let stop_signal = Arc::clone(&self.stop_signal);
                     let pause_signal = Arc::clone(&self.pause_signal);
                     let gen_count = Arc::clone(&self.gen_count);
                     let found_count = Arc::clone(&self.found_count);
+                    let chain = self.selected_chain;
 
                     stop_signal.store(false, Ordering::Relaxed);
                     pause_signal.store(false, Ordering::Relaxed);
@@ -179,6 +197,8 @@ impl Application for VanityApp {
                         let found = Arc::clone(&found_count);
                         let vanity_cache = Arc::clone(&self.vanity_cache);
                         let patterns_clone = patterns.clone();
+                        let chain_copy = chain;
+                        let filename = format!("{}_vanity.txt", chain_copy.label().to_lowercase());
 
                         thread::spawn(move || loop {
                             if stop.load(Ordering::Relaxed) {
@@ -191,16 +211,16 @@ impl Application for VanityApp {
                             }
 
                             for _ in 0..batch {
-                                let addr = generate_tron_address();
+                                let addr = generate_vanity_address(chain_copy);
                                 let patterns_refs: Vec<&str> =
                                     patterns_clone.iter().map(|s| s.as_str()).collect();
                                 if is_vanity_address(&addr.address, &patterns_refs) {
                                     found.fetch_add(1, Ordering::Relaxed);
                                     // 保存到文件
-                                    let _ = save_address_to_file("tron_vanity.txt", &addr, true);
-                                    // 缓存靓号信息用于 UI 显示
+                                    let _ = save_address_to_file(&filename, &addr, true);
+                                    // 缓存靓号信息用于 UI 显示 / 手动保存
                                     if let Ok(mut cache) = vanity_cache.lock() {
-                                        *cache = Some(addr.address.clone());
+                                        *cache = Some(addr.clone());
                                     }
                                 }
                                 gen.fetch_add(1, Ordering::Relaxed);
@@ -213,8 +233,7 @@ impl Application for VanityApp {
                 if self.is_running {
                     let new_state = !self.is_paused;
                     self.is_paused = new_state;
-                    self.pause_signal
-                        .store(new_state, Ordering::Relaxed);
+                    self.pause_signal.store(new_state, Ordering::Relaxed);
                     if new_state {
                         self.log_messages.insert(0, "⏸ 已暂停".to_string());
                     } else {
@@ -234,7 +253,11 @@ impl Application for VanityApp {
                         let total = self.total_generated;
                         let found = self.total_found;
                         let elapsed = start.elapsed().as_secs_f64();
-                        let rate = if elapsed > 0.0 { total as f64 / elapsed } else { 0.0 };
+                        let rate = if elapsed > 0.0 {
+                            total as f64 / elapsed
+                        } else {
+                            0.0
+                        };
 
                         self.log_messages.insert(
                             0,
@@ -246,6 +269,39 @@ impl Application for VanityApp {
                     }
                 }
             }
+            Message::SaveCurrent => {
+                if let Some(addr) = self.last_found.clone() {
+                    return Command::perform(
+                        async move {
+                            let target = rfd::FileDialog::new()
+                                .set_title("保存靓号到文本")
+                                .set_file_name("vanity.txt")
+                                .save_file();
+
+                            match target {
+                                Some(path) => {
+                                    let res = save_address_to_file(
+                                        path.to_string_lossy().as_ref(),
+                                        &addr,
+                                        true,
+                                    );
+                                    match res {
+                                        Ok(_) => format!("✅ 已保存: {}", path.display()),
+                                        Err(e) => format!("❌ 保存失败: {}", e),
+                                    }
+                                }
+                                None => "已取消保存".to_string(),
+                            }
+                        },
+                        Message::SaveResult,
+                    );
+                } else {
+                    self.log_messages.insert(0, "暂无可保存的靓号".to_string());
+                }
+            }
+            Message::SaveResult(msg) => {
+                self.log_messages.insert(0, msg);
+            }
             Message::Tick => {
                 let stats = self.monitor.get_stats();
                 self.cpu_percent = stats.cpu_percent;
@@ -256,7 +312,15 @@ impl Application for VanityApp {
                 // 检查是否有新的靓号
                 if let Ok(mut cache) = self.vanity_cache.lock() {
                     if let Some(vanity_info) = cache.take() {
-                        self.log_messages.insert(0, format!("✨ 发现靓号: {}", vanity_info));
+                        self.log_messages.insert(
+                            0,
+                            format!(
+                                "✨ 发现靓号: [{}] {}",
+                                vanity_info.chain.label(),
+                                vanity_info.address
+                            ),
+                        );
+                        self.last_found = Some(vanity_info);
                     }
                 }
 
@@ -285,28 +349,39 @@ impl Application for VanityApp {
     }
 
     fn view(&self) -> Element<'_, Message> {
-        let header = column![
-            text("TRON 波场靓号生成器")
-                .size(32)
-                .style(iced::theme::Text::Color(Color::from_rgb8(231, 242, 255))),
-            text("并行加速 · 实时监控 · 丝滑体验")
-                .size(16)
-                .style(iced::theme::Text::Color(Color::from_rgb8(142, 162, 185))),
-        ]
-        .spacing(4)
-        .width(Length::Fill)
-        .align_items(Alignment::Start);
+        const CHAINS: [ChainType; 3] = [ChainType::Tron, ChainType::Evm, ChainType::Sol];
 
-        let patterns_row = row![
-                text("靓号模式 (逗号分隔)").size(14).style(iced::theme::Text::Color(accent())),
-            text_input("1111,2222,....", &self.patterns_input)
-                .on_input(Message::PatternsChanged)
+        let header = row![
+            column![
+                text("多链靓号工坊")
+                    .size(30)
+                    .style(iced::theme::Text::Color(Color::from_rgb8(231, 242, 255))),
+                text("TRON · EVM · SOL | 并行加速 · 实时监控")
+                    .size(16)
+                    .style(iced::theme::Text::Color(Color::from_rgb8(142, 162, 185))),
+            ]
+            .spacing(4)
+            .width(Length::Fill)
+            .align_items(Alignment::Start),
+            pick_list(CHAINS, Some(self.selected_chain), Message::ChainChanged)
+                .placeholder("选择链")
                 .padding(10)
-                .size(14)
-                .width(Length::Fill),
+                .width(Length::Fixed(150.0)),
         ]
         .spacing(12)
         .align_items(Alignment::Center);
+
+        let patterns_row = column![
+            text("靓号模式 (末尾匹配, 逗号分隔) ")
+                .size(14)
+                .style(iced::theme::Text::Color(accent())),
+            text_input("1111,2222,...", &self.patterns_input)
+                .on_input(Message::PatternsChanged)
+                .padding(12)
+                .size(14)
+                .width(Length::Fill),
+        ]
+        .spacing(8);
 
         let batch_threads_row = row![
             text("批处理大小").size(14).width(Length::Shrink),
@@ -319,15 +394,18 @@ impl Application for VanityApp {
                 .on_input(Message::ThreadCountChanged)
                 .padding(10)
                 .width(Length::Fixed(120.0)),
-            checkbox("保存所有地址", self.save_all).on_toggle(Message::SaveAllToggled),
         ]
         .spacing(12)
         .align_items(Alignment::Center);
 
         let controls = row![
             primary_button("启动", Message::StartPressed),
-            ghost_button(if self.is_paused { "继续" } else { "暂停" }, Message::PausePressed),
+            ghost_button(
+                if self.is_paused { "继续" } else { "暂停" },
+                Message::PausePressed
+            ),
             danger_button("停止", Message::StopPressed),
+            ghost_button("保存当前靓号", Message::SaveCurrent),
         ]
         .spacing(12);
 
@@ -345,10 +423,20 @@ impl Application for VanityApp {
 
         let system_card = card(
             column![
-                text("系统监控").size(18).style(iced::theme::Text::Color(accent())),
+                text("系统监控·仪表模式")
+                    .size(18)
+                    .style(iced::theme::Text::Color(accent())),
+                row![
+                    gauge("CPU", self.cpu_percent, Color::from_rgb8(255, 99, 146)),
+                    gauge("内存", self.memory_percent, Color::from_rgb8(92, 225, 230),),
+                ]
+                .spacing(16)
+                .align_items(Alignment::Center),
                 row![
                     text(format!("CPU {:.1}%", self.cpu_percent)).size(14),
-                    progress_bar(0.0..=100.0, self.cpu_percent).height(16.0).width(Length::Fill),
+                    progress_bar(0.0..=100.0, self.cpu_percent)
+                        .height(10.0)
+                        .width(Length::Fill),
                 ]
                 .spacing(10)
                 .align_items(Alignment::Center),
@@ -358,7 +446,9 @@ impl Application for VanityApp {
                         self.memory_percent, self.memory_used_mb, self.memory_total_mb
                     ))
                     .size(14),
-                    progress_bar(0.0..=100.0, self.memory_percent).height(16.0).width(Length::Fill),
+                    progress_bar(0.0..=100.0, self.memory_percent)
+                        .height(10.0)
+                        .width(Length::Fill),
                 ]
                 .spacing(10)
                 .align_items(Alignment::Center),
@@ -367,8 +457,10 @@ impl Application for VanityApp {
         );
 
         let logs = {
-            let mut col = column![text("日志").size(18).style(iced::theme::Text::Color(accent()))];
-            for msg in self.log_messages.iter().take(8) {
+            let mut col = column![text("日志")
+                .size(18)
+                .style(iced::theme::Text::Color(accent()))];
+            for msg in self.log_messages.iter().take(10) {
                 col = col.push(text(msg).size(13));
             }
             card(col.spacing(6))
@@ -406,10 +498,14 @@ impl Application for VanityApp {
 }
 
 fn primary_button<'a>(label: &str, on_press: Message) -> iced::widget::Button<'a, Message> {
-    button(text(label).style(iced::theme::Text::Color(Color::WHITE)).size(14))
-        .padding([10, 16])
-        .style(theme::Button::Positive)
-        .on_press(on_press)
+    button(
+        text(label)
+            .style(iced::theme::Text::Color(Color::WHITE))
+            .size(14),
+    )
+    .padding([10, 16])
+    .style(theme::Button::Positive)
+    .on_press(on_press)
 }
 
 fn ghost_button<'a>(label: &str, on_press: Message) -> iced::widget::Button<'a, Message> {
@@ -479,6 +575,93 @@ impl iced::widget::container::StyleSheet for SurfaceStyle {
     }
 }
 
+fn gauge<'a>(label: &str, value: f32, color: Color) -> Element<'a, Message> {
+    let clamped = value.clamp(0.0, 100.0);
+    let gauge = Gauge {
+        label: label.to_string(),
+        value: clamped,
+        color,
+    };
+
+    Canvas::new(gauge)
+        .width(Length::Fixed(180.0))
+        .height(Length::Fixed(140.0))
+        .into()
+}
+
+struct Gauge {
+    label: String,
+    value: f32,
+    color: Color,
+}
+
+impl canvas::Program<Message> for Gauge {
+    type State = ();
+
+    fn draw(
+        &self,
+        _state: &Self::State,
+        renderer: &iced::Renderer,
+        _theme: &Theme,
+        bounds: iced::Rectangle,
+        _cursor: mouse::Cursor,
+    ) -> Vec<canvas::Geometry> {
+        let mut frame = canvas::Frame::new(renderer, bounds.size());
+
+        let center = frame.center();
+        let radius = (bounds.width.min(bounds.height) / 2.0) - 10.0;
+
+        // 背景环
+        frame.stroke(
+            &canvas::Path::circle(center, radius),
+            canvas::Stroke::default()
+                .with_width(10.0)
+                .with_color(Color::from_rgba(1.0, 1.0, 1.0, 0.08)),
+        );
+
+        // 值环（180 度半圆）
+        let sweep = std::f32::consts::PI * (self.value / 100.0);
+        let start = -std::f32::consts::PI;
+        let end = start + sweep;
+        let arc = canvas::Path::new(|p| {
+            p.arc(path::Arc {
+                center,
+                radius,
+                start_angle: iced::Radians(start),
+                end_angle: iced::Radians(end),
+            });
+        });
+        frame.stroke(
+            &arc,
+            canvas::Stroke::default()
+                .with_width(10.0)
+                .with_color(self.color)
+                .with_line_cap(canvas::LineCap::Round),
+        );
+
+        // 文本
+        frame.fill_text(canvas::Text {
+            content: format!("{}", self.label),
+            position: center + iced::Vector::new(0.0, -12.0),
+            color: Color::from_rgb8(210, 220, 235),
+            size: iced::Pixels(16.0),
+            horizontal_alignment: iced::alignment::Horizontal::Center,
+            ..Default::default()
+        });
+
+        frame.fill_text(canvas::Text {
+            content: format!("{:.1}%", self.value),
+            position: center + iced::Vector::new(0.0, 16.0),
+            color: self.color,
+            size: iced::Pixels(22.0),
+            horizontal_alignment: iced::alignment::Horizontal::Center,
+            ..Default::default()
+        });
+
+        vec![frame.into_geometry()]
+    }
+}
+
 pub fn main() -> iced::Result {
     VanityApp::run(Settings {
         window: iced::window::Settings {
@@ -490,5 +673,3 @@ pub fn main() -> iced::Result {
         ..Default::default()
     })
 }
-
-

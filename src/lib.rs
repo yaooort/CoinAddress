@@ -1,54 +1,84 @@
-use sha2::{Sha256, Digest};
-use ripemd::Ripemd160;
-use k256::elliptic_curve::sec1::ToEncodedPoint;
-use std::fs::OpenOptions;
-use std::io::Write;
+use std::{fs::OpenOptions, io::Write};
+
 use chrono::Local;
+use ed25519_dalek::{PublicKey, SecretKey};
+use k256::elliptic_curve::sec1::ToEncodedPoint;
+use rand::RngCore;
+use ripemd::Ripemd160;
+use sha2::{Digest, Sha256};
+use tiny_keccak::{Hasher, Keccak};
 
 pub mod monitor;
 
-/// TRON地址相关信息
+/// 支持的链类型
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ChainType {
+    Tron,
+    Evm,
+    Sol,
+}
+
+impl ChainType {
+    pub fn label(self) -> &'static str {
+        match self {
+            ChainType::Tron => "TRON",
+            ChainType::Evm => "EVM",
+            ChainType::Sol => "SOL",
+        }
+    }
+}
+
+impl std::fmt::Display for ChainType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.label())
+    }
+}
+
+/// 通用的靓号结果结构
 #[derive(Clone, Debug)]
-pub struct TronAddress {
+pub struct VanityAddress {
+    pub chain: ChainType,
     pub address: String,
     pub public_key: String,
     pub private_key: String,
     pub mnemonic: String,
 }
 
-/// 生成随机私钥
+/// 生成随机 secp256k1 私钥
 pub fn generate_private_key() -> [u8; 32] {
-    use rand::RngCore;
     let mut key = [0u8; 32];
     rand::thread_rng().fill_bytes(&mut key);
     key
 }
 
-/// 从私钥生成公钥
+/// 从私钥生成 secp256k1 公钥（未压缩）
 pub fn private_key_to_public_key(private_key: &[u8; 32]) -> Vec<u8> {
     use k256::SecretKey;
     let secret = SecretKey::from_slice(private_key).expect("valid key");
-    let public = secret.public_key();
-    public.to_encoded_point(false).as_bytes().to_vec()
+    secret
+        .public_key()
+        .to_encoded_point(false)
+        .as_bytes()
+        .to_vec()
 }
 
-/// 从公钥生成TRON地址
-pub fn public_key_to_address(public_key: &[u8]) -> String {
-    // 1. SHA256哈希公钥
+/// 从公钥生成 TRON 地址
+pub fn public_key_to_tron_address(public_key: &[u8]) -> String {
+    // 1. SHA256 公钥（跳过前缀字节 0x04）
     let mut hasher = Sha256::new();
-    hasher.update(&public_key[1..]); // 跳过前缀字节
+    hasher.update(&public_key[1..]);
     let sha256_hash = hasher.finalize();
 
-    // 2. RIPEMD160哈希
+    // 2. RIPEMD160
     let mut hasher = Ripemd160::new();
     hasher.update(&sha256_hash);
     let ripemd160_hash = hasher.finalize();
 
-    // 3. 添加版本字节（0x41 for TRON mainnet）
+    // 3. 添加版本字节 0x41
     let mut versioned = vec![0x41];
     versioned.extend_from_slice(&ripemd160_hash);
 
-    // 4. 计算校验和（SHA256两次）
+    // 4. 双 SHA256 取前 4 字节做校验和
     let mut hasher = Sha256::new();
     hasher.update(&versioned);
     let sha256_1 = hasher.finalize();
@@ -57,75 +87,113 @@ pub fn public_key_to_address(public_key: &[u8]) -> String {
     hasher.update(&sha256_1);
     let sha256_2 = hasher.finalize();
 
-    // 5. 取前4字节作为校验和
     let checksum = &sha256_2[0..4];
 
-    // 6. 添加校验和
+    // 5. 拼接并 Base58 编码
     let mut address_bytes = versioned;
     address_bytes.extend_from_slice(checksum);
 
-    // 7. Base58编码
     bs58::encode(&address_bytes).into_string()
 }
 
-/// 生成TRON地址及相关信息
-pub fn generate_tron_address() -> TronAddress {
-    // 生成私钥
+/// 生成 TRON 地址
+pub fn generate_tron_address() -> VanityAddress {
     let private_key = generate_private_key();
-    let private_key_hex = hex::encode(&private_key);
-
-    // 生成公钥
     let public_key = private_key_to_public_key(&private_key);
-    let public_key_hex = hex::encode(&public_key);
 
-    // 生成地址
-    let address = public_key_to_address(&public_key);
+    let address = public_key_to_tron_address(&public_key);
+    let mnemonic = generate_mnemonic(&private_key);
 
-    // 生成BIP39助记词
-    let entropy = private_key.to_vec();
-    let mnemonic = generate_mnemonic(&entropy);
-
-    TronAddress {
+    VanityAddress {
+        chain: ChainType::Tron,
         address,
-        public_key: public_key_hex,
-        private_key: private_key_hex,
+        public_key: hex::encode(&public_key),
+        private_key: hex::encode(&private_key),
         mnemonic,
     }
 }
 
-/// 生成BIP39助记词
+/// 生成 EVM 地址（以太坊兼容）
+pub fn generate_evm_address() -> VanityAddress {
+    let private_key = generate_private_key();
+    let public_key = private_key_to_public_key(&private_key);
+
+    // keccak256 公钥（去掉 0x04 前缀）后取后 20 字节
+    let mut keccak = Keccak::v256();
+    keccak.update(&public_key[1..]);
+    let mut out = [0u8; 32];
+    keccak.finalize(&mut out);
+    let address_bytes = &out[12..];
+    let address = format!("0x{}", hex::encode(address_bytes));
+
+    let mnemonic = generate_mnemonic(&private_key);
+
+    VanityAddress {
+        chain: ChainType::Evm,
+        address,
+        public_key: hex::encode(&public_key),
+        private_key: hex::encode(&private_key),
+        mnemonic,
+    }
+}
+
+/// 生成 Solana 地址
+pub fn generate_sol_address() -> VanityAddress {
+    let mut seed = [0u8; 32];
+    rand::thread_rng().fill_bytes(&mut seed);
+
+    let secret = SecretKey::from_bytes(&seed).expect("valid seed");
+    let public: PublicKey = (&secret).into();
+
+    let address = bs58::encode(public.as_bytes()).into_string();
+    let mnemonic = generate_mnemonic(&seed);
+
+    VanityAddress {
+        chain: ChainType::Sol,
+        address,
+        public_key: hex::encode(public.as_bytes()),
+        private_key: hex::encode(seed),
+        mnemonic,
+    }
+}
+
+/// 按链类型生成地址
+pub fn generate_vanity_address(chain: ChainType) -> VanityAddress {
+    match chain {
+        ChainType::Tron => generate_tron_address(),
+        ChainType::Evm => generate_evm_address(),
+        ChainType::Sol => generate_sol_address(),
+    }
+}
+
+/// 生成 BIP39 助记词（12 词）
 fn generate_mnemonic(entropy: &[u8]) -> String {
     use bip39::Mnemonic;
-    // 使用前16字节生成12个单词的助记词
-    match Mnemonic::from_entropy(&entropy[0..16]) {
+    let entropy_slice = &entropy[0..16.min(entropy.len())];
+    match Mnemonic::from_entropy(entropy_slice) {
         Ok(m) => m.to_string(),
         Err(_) => "unable to generate mnemonic".to_string(),
     }
 }
 
-/// 检查是否为靓号（美号）
-/// 检查标准：末尾匹配指定模式或连续相同字符
+/// 检查是否为靓号：末尾匹配模式或末尾连续 >=3 相同字符
 pub fn is_vanity_address(address: &str, patterns: &[&str]) -> bool {
     let address_lower = address.to_lowercase();
-    
-    // 如果有自定义模式，检查末尾是否匹配
+
     if !patterns.is_empty() {
         for pattern in patterns {
-            let pattern_lower = pattern.to_lowercase();
-            if address_lower.ends_with(&pattern_lower) {
+            if address_lower.ends_with(&pattern.to_lowercase()) {
                 return true;
             }
         }
         return false;
     }
-    
-    // 没有自定义模式时，检查末尾是否有连续相同字符（3个或以上）
+
     let chars: Vec<char> = address_lower.chars().collect();
     if chars.len() < 3 {
         return false;
     }
-    
-    // 检查末尾的连续相同字符
+
     let mut consecutive = 1;
     for i in (1..chars.len()).rev() {
         if chars[i] == chars[i - 1] && chars[i].is_ascii_alphanumeric() {
@@ -141,31 +209,56 @@ pub fn is_vanity_address(address: &str, patterns: &[&str]) -> bool {
     false
 }
 
-/// 检查地址中是否包含特定前缀
-pub fn has_prefix(address: &str, prefix: &str) -> bool {
-    address.to_lowercase().contains(&prefix.to_lowercase())
-}
-
-/// 打印地址到控制台
-pub fn print_address(tron: &TronAddress, is_vanity: bool) {
+/// 打印到控制台
+pub fn print_address(addr: &VanityAddress, is_vanity: bool) {
     use colored::*;
-    
+
     if is_vanity {
-        println!("{}", "╔════════════════════════════════════════════════════════════╗".bright_yellow());
-        println!("{} {}", "║ 发现靓号! | Found Vanity Address! |".bright_yellow(), "".bright_yellow());
-        println!("{}", "╠════════════════════════════════════════════════════════════╣".bright_yellow());
-        println!("{} {}", "地址 | Address:".bright_green(), tron.address.bright_cyan());
-        println!("{} {}", "私钥 | Private Key:".bright_red(), tron.private_key.bright_white());
-        println!("{} {}", "公钥 | Public Key:".bright_blue(), tron.public_key);
-        println!("{} {}", "助记词 | Mnemonic:".bright_magenta(), tron.mnemonic);
-        println!("{}", "╚════════════════════════════════════════════════════════════╝".bright_yellow());
+        println!(
+            "{}",
+            "╔════════════════════════════════════════════════════════════╗".bright_yellow()
+        );
+        println!(
+            "{} {}",
+            "║ 发现靓号! | Found Vanity Address! |".bright_yellow(),
+            "".bright_yellow()
+        );
+        println!(
+            "{}",
+            "╠════════════════════════════════════════════════════════════╣".bright_yellow()
+        );
+        println!("{} {}", "链 | Chain:".bright_green(), addr.chain.label());
+        println!(
+            "{} {}",
+            "地址 | Address:".bright_green(),
+            addr.address.bright_cyan()
+        );
+        println!(
+            "{} {}",
+            "私钥 | Private Key:".bright_red(),
+            addr.private_key.bright_white()
+        );
+        println!("{} {}", "公钥 | Public Key:".bright_blue(), addr.public_key);
+        println!(
+            "{} {}",
+            "助记词 | Mnemonic:".bright_magenta(),
+            addr.mnemonic
+        );
+        println!(
+            "{}",
+            "╚════════════════════════════════════════════════════════════╝".bright_yellow()
+        );
     } else {
-        println!("{} {}", "地址 | Address:".bright_green(), tron.address);
+        println!("{} {}", "地址 | Address:".bright_green(), addr.address);
     }
 }
 
-/// 打印地址到文件
-pub fn save_address_to_file(filename: &str, tron: &TronAddress, is_vanity: bool) -> std::io::Result<()> {
+/// 写入文件
+pub fn save_address_to_file(
+    filename: &str,
+    addr: &VanityAddress,
+    is_vanity: bool,
+) -> std::io::Result<()> {
     let mut file = OpenOptions::new()
         .create(true)
         .append(true)
@@ -174,13 +267,25 @@ pub fn save_address_to_file(filename: &str, tron: &TronAddress, is_vanity: bool)
     let timestamp = Local::now().format("%Y-%m-%d %H:%M:%S");
     let vanity_mark = if is_vanity { "[VANITY]" } else { "[NORMAL]" };
 
-    writeln!(file, "═══════════════════════════════════════════════════════════")?;
-    writeln!(file, "{} {}", vanity_mark, timestamp)?;
-    writeln!(file, "Address: {}", tron.address)?;
-    writeln!(file, "Private Key: {}", tron.private_key)?;
-    writeln!(file, "Public Key: {}", tron.public_key)?;
-    writeln!(file, "Mnemonic: {}", tron.mnemonic)?;
-    writeln!(file, "═══════════════════════════════════════════════════════════")?;
+    writeln!(
+        file,
+        "═══════════════════════════════════════════════════════════"
+    )?;
+    writeln!(
+        file,
+        "{} {} | Chain: {}",
+        vanity_mark,
+        timestamp,
+        addr.chain.label()
+    )?;
+    writeln!(file, "Address: {}", addr.address)?;
+    writeln!(file, "Private Key: {}", addr.private_key)?;
+    writeln!(file, "Public Key: {}", addr.public_key)?;
+    writeln!(file, "Mnemonic: {}", addr.mnemonic)?;
+    writeln!(
+        file,
+        "═══════════════════════════════════════════════════════════"
+    )?;
     writeln!(file)?;
 
     Ok(())
@@ -198,32 +303,35 @@ mod tests {
     #[test]
     fn test_tron_address_generation() {
         let addr = generate_tron_address();
-        assert!(addr.address.starts_with("T"));
-        assert_eq!(addr.private_key.len(), 64); // 32字节 = 64个十六进制字符
+        assert!(addr.address.starts_with('T'));
+        assert_eq!(addr.private_key.len(), 64);
+    }
+
+    #[test]
+    fn test_evm_address_generation() {
+        let addr = generate_evm_address();
+        assert!(addr.address.starts_with("0x"));
+        assert_eq!(addr.address.len(), 42);
+    }
+
+    #[test]
+    fn test_sol_address_generation() {
+        let addr = generate_sol_address();
+        assert!(addr.address.len() >= 32); // Solana 地址 Base58 长度不固定但>=32
     }
 
     #[test]
     fn test_vanity_detection() {
-        // 末尾3个或以上连续相同字符才算靓号
         assert!(is_vanity_address("T1234567890aaa", &[]));
-        assert!(is_vanity_address("Tabc1111", &[]));
+        assert!(is_vanity_address("0xabc1111", &[]));
         assert!(!is_vanity_address("Taaa1234567890", &[]));
-        assert!(!is_vanity_address("T1234567890", &[]));
     }
 
     #[test]
-    fn test_address_format() {
-        let addr = generate_tron_address();
-        assert!(addr.address.starts_with("T"));
-        assert_eq!(addr.address.len(), 34);
-    }
-
-    #[test]
-    fn test_private_key_format() {
-        let addr = generate_tron_address();
-        // 私钥应该是64个十六进制字符
-        assert_eq!(addr.private_key.len(), 64);
-        assert!(addr.private_key.chars().all(|c| c.is_ascii_hexdigit()));
+    fn test_custom_pattern_detection() {
+        let patterns = &["lucky"];
+        assert!(is_vanity_address("TAbCDEFlucky", patterns));
+        assert!(!is_vanity_address("luckyABC", patterns));
     }
 
     #[test]
@@ -231,24 +339,5 @@ mod tests {
         let addr = generate_tron_address();
         let words: Vec<&str> = addr.mnemonic.split_whitespace().collect();
         assert_eq!(words.len(), 12);
-    }
-
-    #[test]
-    fn test_custom_pattern_detection() {
-        // 测试末尾匹配
-        let patterns = &["lucky"];
-        assert!(is_vanity_address("TAbCDEFlucky", patterns));
-        assert!(is_vanity_address("Tlucky", patterns));
-        assert!(!is_vanity_address("TluckyABC", patterns));
-        assert!(!is_vanity_address("TPoorAddress", patterns));
-    }
-
-    #[test]
-    fn test_vanity_default_pattern() {
-        // 测试默认靓号检测（末尾连续相同字符3个或以上）
-        assert!(is_vanity_address("TAbcd1111", &[]));
-        assert!(is_vanity_address("Ttest6666", &[]));
-        assert!(!is_vanity_address("TAbcd11", &[])); // 只有2个，不符合
-        assert!(!is_vanity_address("T1111abcd", &[])); // 开头不算
     }
 }

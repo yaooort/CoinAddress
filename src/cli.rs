@@ -1,9 +1,12 @@
-use std::sync::{Arc, atomic::{AtomicBool, AtomicU64, Ordering}};
-use std::thread;
-use std::time::Instant;
-use std::io::{self, Write};
 use colored::*;
 use rayon::prelude::*;
+use std::io::{self, Write};
+use std::sync::{
+    atomic::{AtomicBool, AtomicU64, Ordering},
+    Arc,
+};
+use std::thread;
+use std::time::Instant;
 
 use tron_vanity::*;
 
@@ -43,10 +46,22 @@ impl Default for Config {
 }
 
 fn main() {
-    println!("{}", "╔════════════════════════════════════════════════════════════╗".bright_cyan());
-    println!("{}", "║  TRON 波场靓号生成器 | TRON Vanity Address Generator  ║".bright_cyan());
-    println!("{}", "║       快速高效 • 充分利用 CPU 和 GPU 性能              ║".bright_cyan());
-    println!("{}", "╚════════════════════════════════════════════════════════════╝".bright_cyan());
+    println!(
+        "{}",
+        "╔════════════════════════════════════════════════════════════╗".bright_cyan()
+    );
+    println!(
+        "{}",
+        "║  TRON 波场靓号生成器 | TRON Vanity Address Generator  ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "║       快速高效 • 充分利用 CPU 和 GPU 性能              ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════════════════════════╝".bright_cyan()
+    );
     println!();
 
     let mut config = Config::default();
@@ -58,7 +73,10 @@ fn main() {
     match choice.trim() {
         "1" => {
             // 使用默认靓号
-            println!("{}", "使用默认靓号模式... Using default vanity patterns...".bright_yellow());
+            println!(
+                "{}",
+                "使用默认靓号模式... Using default vanity patterns...".bright_yellow()
+            );
             run_vanity_generator(&config);
         }
         "2" => {
@@ -72,12 +90,12 @@ fn main() {
                 .map(|s| s.trim().to_string())
                 .filter(|s| !s.is_empty())
                 .collect();
-            
+
             if config.patterns.is_empty() {
                 println!("{}", "未输入模式，使用默认".red());
                 config = Config::default();
             }
-            
+
             run_vanity_generator(&config);
         }
         "3" => {
@@ -116,39 +134,79 @@ fn get_user_input(prompt: &str) -> String {
 }
 
 fn configure_advanced(config: &mut Config) {
-    println!("{}", "╔════════════════════════════════════════════════════════════╗".bright_magenta());
-    println!("{}", "║                   高级设置 (Advanced Settings)             ║".bright_magenta());
-    println!("{}", "╚════════════════════════════════════════════════════════════╝".bright_magenta());
-    
+    println!(
+        "{}",
+        "╔════════════════════════════════════════════════════════════╗".bright_magenta()
+    );
+    println!(
+        "{}",
+        "║                   高级设置 (Advanced Settings)             ║".bright_magenta()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════════════════════════╝".bright_magenta()
+    );
+
     let save_all_str = get_user_input("保存所有生成的地址? (Save all addresses? y/n): ");
     config.save_all = save_all_str.trim().to_lowercase().starts_with('y');
 
-    let threads_str = get_user_input(&format!("线程数 (Number of threads, default {}): ", config.num_threads));
+    let threads_str = get_user_input(&format!(
+        "线程数 (Number of threads, default {}): ",
+        config.num_threads
+    ));
     if let Ok(n) = threads_str.trim().parse::<usize>() {
         if n > 0 && n <= 256 {
             config.num_threads = n;
         }
     }
 
-    let batch_str = get_user_input(&format!("批处理大小 (Batch size, default {}): ", config.batch_size));
+    let batch_str = get_user_input(&format!(
+        "批处理大小 (Batch size, default {}): ",
+        config.batch_size
+    ));
     if let Ok(n) = batch_str.trim().parse::<usize>() {
         if n > 0 && n <= 100000 {
             config.batch_size = n;
         }
     }
 
-    println!("{}", format!("配置完成: {} 线程, 批大小 {}", config.num_threads, config.batch_size).bright_green());
+    println!(
+        "{}",
+        format!(
+            "配置完成: {} 线程, 批大小 {}",
+            config.num_threads, config.batch_size
+        )
+        .bright_green()
+    );
 }
 
 fn run_vanity_generator(config: &Config) {
     println!();
-    println!("{}", "╔════════════════════════════════════════════════════════════╗".bright_green());
-    println!("{}", "║                    开始生成靓号 (Starting)                 ║".bright_green());
-    println!("{}", "╚════════════════════════════════════════════════════════════╝".bright_green());
-    
-    println!("{}", format!("靓号模式 | Patterns: {}", config.patterns.join(", ")).bright_yellow());
-    println!("{}", format!("线程数 | Threads: {}", config.num_threads).bright_yellow());
-    println!("{}", format!("输出文件 | Output File: {}", config.output_file).bright_yellow());
+    println!(
+        "{}",
+        "╔════════════════════════════════════════════════════════════╗".bright_green()
+    );
+    println!(
+        "{}",
+        "║                    开始生成靓号 (Starting)                 ║".bright_green()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════════════════════════╝".bright_green()
+    );
+
+    println!(
+        "{}",
+        format!("靓号模式 | Patterns: {}", config.patterns.join(", ")).bright_yellow()
+    );
+    println!(
+        "{}",
+        format!("线程数 | Threads: {}", config.num_threads).bright_yellow()
+    );
+    println!(
+        "{}",
+        format!("输出文件 | Output File: {}", config.output_file).bright_yellow()
+    );
     println!();
 
     let start = Instant::now();
@@ -160,28 +218,29 @@ fn run_vanity_generator(config: &Config) {
     let counter_clone = Arc::clone(&counter);
     let found_clone = Arc::clone(&found);
     let should_stop_clone = Arc::clone(&should_stop);
-    
+
     let stats_thread = thread::spawn(move || {
         let mut last_count = 0u64;
         loop {
             thread::sleep(std::time::Duration::from_secs(1));
-            
+
             if should_stop_clone.load(Ordering::Relaxed) {
                 break;
             }
-            
+
             let total = counter_clone.load(Ordering::Relaxed);
             let total_found = found_clone.load(Ordering::Relaxed);
             let rate = total - last_count;
-            
-            print!("\r{} {} | {} 个靓号已找到 | 速率: {:.0} addr/s    ",
+
+            print!(
+                "\r{} {} | {} 个靓号已找到 | 速率: {:.0} addr/s    ",
                 "▶".bright_cyan(),
                 format!("已生成 {} 个地址", total).bright_white(),
                 format!("{}", total_found).bright_yellow(),
                 rate as f64
             );
             io::stdout().flush().unwrap();
-            
+
             last_count = total;
         }
     });
@@ -195,7 +254,7 @@ fn run_vanity_generator(config: &Config) {
 
     // 主生成线程
     let patterns: Vec<&str> = config.patterns.iter().map(|s| s.as_str()).collect();
-    
+
     loop {
         if should_stop.load(Ordering::Relaxed) {
             break;
@@ -231,40 +290,100 @@ fn run_vanity_generator(config: &Config) {
     let total_found = found.load(Ordering::Relaxed);
 
     println!("\n");
-    println!("{}", "╔════════════════════════════════════════════════════════════╗".bright_green());
-    println!("{}", "║                    生成完成 (Finished)                     ║".bright_green());
-    println!("{}", "╠════════════════════════════════════════════════════════════╣".bright_green());
-    println!("{} {}", "总生成数 | Total Generated:".bright_white(), format!("{}", total_generated).bright_cyan());
-    println!("{} {}", "找到靓号 | Vanity Found:".bright_white(), format!("{}", total_found).bright_yellow());
-    println!("{} {}", "耗时 | Time Elapsed:".bright_white(), format!("{:.2?}", elapsed).bright_cyan());
-    println!("{} {}", "平均速率 | Average Rate:".bright_white(), format!("{:.0} addr/s", total_generated as f64 / elapsed.as_secs_f64()).bright_cyan());
-    println!("{} {}", "结果保存 | Results Saved:".bright_white(), config.output_file.bright_yellow());
-    println!("{}", "╚════════════════════════════════════════════════════════════╝".bright_green());
+    println!(
+        "{}",
+        "╔════════════════════════════════════════════════════════════╗".bright_green()
+    );
+    println!(
+        "{}",
+        "║                    生成完成 (Finished)                     ║".bright_green()
+    );
+    println!(
+        "{}",
+        "╠════════════════════════════════════════════════════════════╣".bright_green()
+    );
+    println!(
+        "{} {}",
+        "总生成数 | Total Generated:".bright_white(),
+        format!("{}", total_generated).bright_cyan()
+    );
+    println!(
+        "{} {}",
+        "找到靓号 | Vanity Found:".bright_white(),
+        format!("{}", total_found).bright_yellow()
+    );
+    println!(
+        "{} {}",
+        "耗时 | Time Elapsed:".bright_white(),
+        format!("{:.2?}", elapsed).bright_cyan()
+    );
+    println!(
+        "{} {}",
+        "平均速率 | Average Rate:".bright_white(),
+        format!(
+            "{:.0} addr/s",
+            total_generated as f64 / elapsed.as_secs_f64()
+        )
+        .bright_cyan()
+    );
+    println!(
+        "{} {}",
+        "结果保存 | Results Saved:".bright_white(),
+        config.output_file.bright_yellow()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════════════════════════╝".bright_green()
+    );
 }
 
 fn benchmark_generation() {
     println!();
-    println!("{}", "╔════════════════════════════════════════════════════════════╗".bright_cyan());
-    println!("{}", "║                  性能测试 (Benchmark)                      ║".bright_cyan());
-    println!("{}", "╚════════════════════════════════════════════════════════════╝".bright_cyan());
-    
+    println!(
+        "{}",
+        "╔════════════════════════════════════════════════════════════╗".bright_cyan()
+    );
+    println!(
+        "{}",
+        "║                  性能测试 (Benchmark)                      ║".bright_cyan()
+    );
+    println!(
+        "{}",
+        "╚════════════════════════════════════════════════════════════╝".bright_cyan()
+    );
+
     let num_threads = num_cpus::get();
-    println!("{} {}", "检测到 CPU 核心数 | CPU Cores:".bright_yellow(), format!("{}", num_threads).bright_cyan());
+    println!(
+        "{} {}",
+        "检测到 CPU 核心数 | CPU Cores:".bright_yellow(),
+        format!("{}", num_threads).bright_cyan()
+    );
     println!();
 
     // 单线程测试
-    println!("{}", "► 单线程性能测试 (Single-threaded benchmark)...".bright_green());
+    println!(
+        "{}",
+        "► 单线程性能测试 (Single-threaded benchmark)...".bright_green()
+    );
     let start = Instant::now();
     for _ in 0..100 {
         let _ = generate_tron_address();
     }
     let elapsed = start.elapsed();
     let rate = 100.0 / elapsed.as_secs_f64();
-    println!("{} 100 个地址生成耗时: {:.2?} | 速率: {:.0} addr/s", "✓".bright_green(), elapsed, rate);
+    println!(
+        "{} 100 个地址生成耗时: {:.2?} | 速率: {:.0} addr/s",
+        "✓".bright_green(),
+        elapsed,
+        rate
+    );
     println!();
 
     // 多线程测试
-    println!("{}", "► 多线程性能测试 (Multi-threaded benchmark)...".bright_green());
+    println!(
+        "{}",
+        "► 多线程性能测试 (Multi-threaded benchmark)...".bright_green()
+    );
     let start = Instant::now();
     let _results: Vec<_> = (0..1000)
         .into_par_iter()
@@ -272,11 +391,19 @@ fn benchmark_generation() {
         .collect();
     let elapsed = start.elapsed();
     let rate = 1000.0 / elapsed.as_secs_f64();
-    println!("{} 1000 个地址生成耗时: {:.2?} | 速率: {:.0} addr/s", "✓".bright_green(), elapsed, rate);
+    println!(
+        "{} 1000 个地址生成耗时: {:.2?} | 速率: {:.0} addr/s",
+        "✓".bright_green(),
+        elapsed,
+        rate
+    );
     println!();
 
     // 超大规模测试
-    println!("{}", "► 超大规模测试 (Large scale benchmark)...".bright_green());
+    println!(
+        "{}",
+        "► 超大规模测试 (Large scale benchmark)...".bright_green()
+    );
     let start = Instant::now();
     let _results: Vec<_> = (0..10000)
         .into_par_iter()
@@ -284,10 +411,24 @@ fn benchmark_generation() {
         .collect();
     let elapsed = start.elapsed();
     let rate = 10000.0 / elapsed.as_secs_f64();
-    println!("{} 10000 个地址生成耗时: {:.2?} | 速率: {:.0} addr/s", "✓".bright_green(), elapsed, rate);
+    println!(
+        "{} 10000 个地址生成耗时: {:.2?} | 速率: {:.0} addr/s",
+        "✓".bright_green(),
+        elapsed,
+        rate
+    );
     println!();
 
-    println!("{}", "═══════════════════════════════════════════════════════════".bright_cyan());
-    println!("{}", "建议: 在实际生成时使用多线程模式以获得最佳性能".bright_yellow());
-    println!("{}", "Tip: Use multi-threaded mode in production for best performance".bright_yellow());
+    println!(
+        "{}",
+        "═══════════════════════════════════════════════════════════".bright_cyan()
+    );
+    println!(
+        "{}",
+        "建议: 在实际生成时使用多线程模式以获得最佳性能".bright_yellow()
+    );
+    println!(
+        "{}",
+        "Tip: Use multi-threaded mode in production for best performance".bright_yellow()
+    );
 }
