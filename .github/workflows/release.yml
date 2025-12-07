@@ -59,6 +59,7 @@ jobs:
       - name: Create DEB Package
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
+          DEB_VERSION="${VERSION#v}"
           mkdir -p deb_build/DEBIAN
           mkdir -p deb_build/usr/local/bin
 
@@ -67,7 +68,7 @@ jobs:
 
           cat > deb_build/DEBIAN/control << EOF
           Package: tron-vanity
-          Version: $VERSION
+          Version: $DEB_VERSION
           Section: utils
           Priority: optional
           Architecture: amd64
@@ -76,9 +77,9 @@ jobs:
            Fast TRON/EVM/SOL vanity address generator with GUI and CLI.
           EOF
 
-          dpkg-deb --build deb_build tron-vanity_${VERSION}_amd64.deb
+          dpkg-deb --build deb_build tron-vanity_${DEB_VERSION}_amd64.deb
           mkdir -p dist
-          mv tron-vanity_${VERSION}_amd64.deb dist/
+          mv tron-vanity_${DEB_VERSION}_amd64.deb dist/
           ls -lh dist/*.deb
 
       - name: Upload DEB Package
@@ -117,6 +118,7 @@ jobs:
       - name: Create DEB Package
         run: |
           VERSION="${{ needs.create-release.outputs.version }}"
+          DEB_VERSION="${VERSION#v}"
           mkdir -p deb_build/DEBIAN
           mkdir -p deb_build/usr/local/bin
 
@@ -125,7 +127,7 @@ jobs:
 
           cat > deb_build/DEBIAN/control << EOF
           Package: tron-vanity
-          Version: $VERSION
+          Version: $DEB_VERSION
           Section: utils
           Priority: optional
           Architecture: arm64
@@ -134,9 +136,9 @@ jobs:
            Fast TRON/EVM/SOL vanity address generator with GUI and CLI.
           EOF
 
-          dpkg-deb --build deb_build tron-vanity_${VERSION}_arm64.deb
+          dpkg-deb --build deb_build tron-vanity_${DEB_VERSION}_arm64.deb
           mkdir -p dist
-          mv tron-vanity_${VERSION}_arm64.deb dist/
+          mv tron-vanity_${DEB_VERSION}_arm64.deb dist/
           ls -lh dist/*.deb
 
       - name: Upload DEB Package
