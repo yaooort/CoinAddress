@@ -257,26 +257,20 @@ jobs:
           $WixContent = @"
           <?xml version="1.0" encoding="UTF-8"?>
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-            <Product Id="*" Name="TRON Vanity" Language="1033" Version="$VERSION" Manufacturer="TRON Developer" UpgradeCode="12345678-1234-1234-1234-123456789012">
-              <Package InstallerVersion="200" Compressed="yes" Platform="x64" InstallScope="perMachine" />
+            <Package Name="TRON Vanity" Manufacturer="TRON Developer" Version="$VERSION" UpgradeCode="12345678-1234-1234-1234-123456789012">
+              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
               <Media Id="1" Cabinet="tron-vanity.cab" EmbedCab="yes" />
-              <Directory Id="TARGETDIR" Name="SourceDir">
-                <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="TRON Vanity" />
+              <StandardDirectory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="TRON Vanity">
+                  <Component Id="MainEXE">
+                    <File Id="TronVanity" Name="tron-vanity.exe" Source="dist/tron-vanity.exe" KeyPath="yes" />
+                  </Component>
                 </Directory>
-              </Directory>
+              </StandardDirectory>
               <Feature Id="ProductFeature" Title="TRON Vanity" Level="1">
                 <ComponentRef Id="MainEXE" />
               </Feature>
-              <UIRef Id="WixUI_InstallDir" />
-            </Product>
-            <Fragment>
-              <DirectoryRef Id="INSTALLFOLDER">
-                <Component Id="MainEXE" Guid="*">
-                  <File Id="TronVanity" Name="tron-vanity.exe" Source="dist/tron-vanity.exe" KeyPath="yes" />
-                </Component>
-              </DirectoryRef>
-            </Fragment>
+            </Package>
           </Wix>
           "@
 
@@ -328,26 +322,20 @@ jobs:
           $WixContent = @"
           <?xml version="1.0" encoding="UTF-8"?>
           <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
-            <Product Id="*" Name="TRON Vanity" Language="1033" Version="$VERSION" Manufacturer="TRON Developer" UpgradeCode="87654321-4321-4321-4321-210987654321">
-              <Package InstallerVersion="200" Compressed="yes" Platform="arm64" InstallScope="perMachine" />
+            <Package Name="TRON Vanity" Manufacturer="TRON Developer" Version="$VERSION" UpgradeCode="87654321-4321-4321-4321-210987654321">
+              <MajorUpgrade DowngradeErrorMessage="A newer version is already installed." />
               <Media Id="1" Cabinet="tron-vanity.cab" EmbedCab="yes" />
-              <Directory Id="TARGETDIR" Name="SourceDir">
-                <Directory Id="ProgramFilesFolder">
-                  <Directory Id="INSTALLFOLDER" Name="TRON Vanity" />
+              <StandardDirectory Id="ProgramFiles64Folder">
+                <Directory Id="INSTALLFOLDER" Name="TRON Vanity">
+                  <Component Id="MainEXE">
+                    <File Id="TronVanity" Name="tron-vanity.exe" Source="dist/tron-vanity.exe" KeyPath="yes" />
+                  </Component>
                 </Directory>
-              </Directory>
+              </StandardDirectory>
               <Feature Id="ProductFeature" Title="TRON Vanity" Level="1">
                 <ComponentRef Id="MainEXE" />
               </Feature>
-              <UIRef Id="WixUI_InstallDir" />
-            </Product>
-            <Fragment>
-              <DirectoryRef Id="INSTALLFOLDER">
-                <Component Id="MainEXE" Guid="*">
-                  <File Id="TronVanity" Name="tron-vanity.exe" Source="dist/tron-vanity.exe" KeyPath="yes" />
-                </Component>
-              </DirectoryRef>
-            </Fragment>
+            </Package>
           </Wix>
           "@
 
