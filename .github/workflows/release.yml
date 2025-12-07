@@ -256,7 +256,7 @@ jobs:
           $VERSION = "${{ needs.create-release.outputs.version }}" -replace 'v', ''
           $WixContent = @"
           <?xml version="1.0" encoding="UTF-8"?>
-          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+          <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
             <Product Id="*" Name="TRON Vanity" Language="1033" Version="$VERSION" Manufacturer="TRON Developer" UpgradeCode="12345678-1234-1234-1234-123456789012">
               <Package InstallerVersion="200" Compressed="yes" Platform="x64" InstallScope="perMachine" />
               <Media Id="1" Cabinet="tron-vanity.cab" EmbedCab="yes" />
@@ -327,7 +327,7 @@ jobs:
           $VERSION = "${{ needs.create-release.outputs.version }}" -replace 'v', ''
           $WixContent = @"
           <?xml version="1.0" encoding="UTF-8"?>
-          <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+          <Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
             <Product Id="*" Name="TRON Vanity" Language="1033" Version="$VERSION" Manufacturer="TRON Developer" UpgradeCode="87654321-4321-4321-4321-210987654321">
               <Package InstallerVersion="200" Compressed="yes" Platform="arm64" InstallScope="perMachine" />
               <Media Id="1" Cabinet="tron-vanity.cab" EmbedCab="yes" />
