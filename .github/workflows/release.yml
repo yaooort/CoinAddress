@@ -65,7 +65,7 @@ jobs:
           cp target/x86_64-unknown-linux-gnu/release/tron-vanity deb_build/usr/local/bin/
           chmod +x deb_build/usr/local/bin/tron-vanity
           
-          cat > deb_build/DEBIAN/control << 'EOF'
+          cat > deb_build/DEBIAN/control << EOF
           Package: tron-vanity
           Version: $VERSION
           Section: utils
@@ -123,7 +123,7 @@ jobs:
           cp target/aarch64-unknown-linux-gnu/release/tron-vanity deb_build/usr/local/bin/
           chmod +x deb_build/usr/local/bin/tron-vanity
           
-          cat > deb_build/DEBIAN/control << 'EOF'
+          cat > deb_build/DEBIAN/control << EOF
           Package: tron-vanity
           Version: $VERSION
           Section: utils
