@@ -65,14 +65,12 @@ jobs:
           ls -lh *.tar.gz
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_linux-x86_64.tar.gz
-          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_linux-x86_64.tar.gz
-          asset_content_type: application/gzip
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_linux-x86_64.tar.gz
 
   # Linux ARM64
   build-linux-arm64:
@@ -108,14 +106,12 @@ jobs:
           ls -lh *.tar.gz
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_linux-arm64.tar.gz
-          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_linux-arm64.tar.gz
-          asset_content_type: application/gzip
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_linux-arm64.tar.gz
 
   # macOS x86_64
   build-macos-x86_64:
@@ -147,14 +143,12 @@ jobs:
           ls -lh *.tar.gz
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_macos-x86_64.tar.gz
-          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_macos-x86_64.tar.gz
-          asset_content_type: application/gzip
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_macos-x86_64.tar.gz
 
   # macOS ARM64
   build-macos-arm64:
@@ -186,14 +180,12 @@ jobs:
           ls -lh *.tar.gz
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_macos-arm64.tar.gz
-          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_macos-arm64.tar.gz
-          asset_content_type: application/gzip
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_macos-arm64.tar.gz
 
   # Windows x86_64 (MSVC)
   build-windows-x86_64:
@@ -235,14 +227,12 @@ jobs:
           ls -lh *.zip
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.zip
-          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.zip
-          asset_content_type: application/zip
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.zip
 
   # Windows ARM64 (MSVC)
   build-windows-arm64:
@@ -284,14 +274,12 @@ jobs:
           ls -lh *.zip
 
       - name: Upload Release Asset
-        uses: actions/upload-release-asset@v1
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ needs.create-release.outputs.upload_url }}
-          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.zip
-          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.zip
-          asset_content_type: application/zip
+          tag_name: ${{ needs.create-release.outputs.version }}
+          files: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.zip
 
   # 发布完成通知
   publish-complete:
@@ -305,6 +293,7 @@ jobs:
         build-macos-arm64,
         build-windows-x86_64,
         build-windows-arm64,
+        create-release,
       ]
     if: always()
     steps:
