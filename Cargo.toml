@@ -20,9 +20,11 @@ k256 = { version = "0.13", features = ["std"] }
 rand = "0.8"
 hex = "0.4"
 
-# Bip39 助记词
+# Bip39 助记词和密钥派生
 bip39 = "2.2"
 hmac = "0.12"
+pbkdf2 = "0.12"
+bip32 = "0.5"
 
 # Base58编码
 bs58 = "0.5"

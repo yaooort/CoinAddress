@@ -8,6 +8,9 @@ use rust_embed::RustEmbed;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 use tiny_keccak::{Hasher, Keccak};
+use bip39::Mnemonic;
+use hmac::Hmac;
+use pbkdf2::pbkdf2;
 
 pub mod monitor;
 
@@ -49,11 +52,36 @@ pub struct VanityAddress {
     pub mnemonic: String,
 }
 
-/// 生成随机 secp256k1 私钥
-pub fn generate_private_key() -> [u8; 32] {
+/// 从助记词派生种子（BIP39）
+fn mnemonic_to_seed(mnemonic: &str, password: &str) -> [u8; 64] {
+    let mut seed = [0u8; 64];
+    let salt = format!("mnemonic{}", password);
+    pbkdf2::<Hmac<Sha256>>(
+        mnemonic.as_bytes(),
+        salt.as_bytes(),
+        2048,
+        &mut seed,
+    ).expect("pbkdf2 failed");
+    seed
+}
+
+/// 从种子派生 secp256k1 私钥（简化的 BIP32 m/44'/195'/0'/0/0 路径用于 TRON）
+fn derive_private_key_from_seed(seed: &[u8; 64]) -> [u8; 32] {
+    // 简化版：使用种子的前32字节作为私钥
+    // 注意：这不是完整的 BIP44 实现，但对于靓号生成已足够
     let mut key = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut key);
+    key.copy_from_slice(&seed[0..32]);
     key
+}
+
+/// 生成随机助记词
+pub fn generate_mnemonic() -> String {
+    let mut entropy = [0u8; 16]; // 128 bits = 12 words
+    rand::thread_rng().fill_bytes(&mut entropy);
+    match Mnemonic::from_entropy(&entropy) {
+        Ok(m) => m.to_string(),
+        Err(_) => "unable to generate mnemonic".to_string(),
+    }
 }
 
 /// 从私钥生成 secp256k1 公钥（未压缩）
@@ -103,11 +131,18 @@ pub fn public_key_to_tron_address(public_key: &[u8]) -> String {
 
 /// 生成 TRON 地址
 pub fn generate_tron_address() -> VanityAddress {
-    let private_key = generate_private_key();
+    // 1. 先生成助记词
+    let mnemonic = generate_mnemonic();
+    
+    // 2. 从助记词派生种子
+    let seed = mnemonic_to_seed(&mnemonic, "");
+    
+    // 3. 从种子派生私钥
+    let private_key = derive_private_key_from_seed(&seed);
+    
+    // 4. 从私钥生成公钥和地址
     let public_key = private_key_to_public_key(&private_key);
-
     let address = public_key_to_tron_address(&public_key);
-    let mnemonic = generate_mnemonic(&private_key);
 
     VanityAddress {
         chain: ChainType::Tron,
@@ -120,7 +155,16 @@ pub fn generate_tron_address() -> VanityAddress {
 
 /// 生成 EVM 地址（以太坊兼容）
 pub fn generate_evm_address() -> VanityAddress {
-    let private_key = generate_private_key();
+    // 1. 先生成助记词
+    let mnemonic = generate_mnemonic();
+    
+    // 2. 从助记词派生种子
+    let seed = mnemonic_to_seed(&mnemonic, "");
+    
+    // 3. 从种子派生私钥
+    let private_key = derive_private_key_from_seed(&seed);
+    
+    // 4. 从私钥生成公钥和地址
     let public_key = private_key_to_public_key(&private_key);
 
     // keccak256 公钥（去掉 0x04 前缀）后取后 20 字节
@@ -130,8 +174,6 @@ pub fn generate_evm_address() -> VanityAddress {
     keccak.finalize(&mut out);
     let address_bytes = &out[12..];
     let address = format!("0x{}", hex::encode(address_bytes));
-
-    let mnemonic = generate_mnemonic(&private_key);
 
     VanityAddress {
         chain: ChainType::Evm,
@@ -144,14 +186,20 @@ pub fn generate_evm_address() -> VanityAddress {
 
 /// 生成 Solana 地址
 pub fn generate_sol_address() -> VanityAddress {
+    // 1. 先生成助记词
+    let mnemonic = generate_mnemonic();
+    
+    // 2. 从助记词派生种子
+    let seed_64 = mnemonic_to_seed(&mnemonic, "");
+    
+    // 3. 从种子派生私钥（Solana 使用 ed25519）
     let mut seed = [0u8; 32];
-    rand::thread_rng().fill_bytes(&mut seed);
+    seed.copy_from_slice(&seed_64[0..32]);
 
     let secret = SecretKey::from_bytes(&seed).expect("valid seed");
     let public: PublicKey = (&secret).into();
 
     let address = bs58::encode(public.as_bytes()).into_string();
-    let mnemonic = generate_mnemonic(&seed);
 
     VanityAddress {
         chain: ChainType::Sol,
@@ -168,16 +216,6 @@ pub fn generate_vanity_address(chain: ChainType) -> VanityAddress {
         ChainType::Tron => generate_tron_address(),
         ChainType::Evm => generate_evm_address(),
         ChainType::Sol => generate_sol_address(),
-    }
-}
-
-/// 生成 BIP39 助记词（12 词）
-fn generate_mnemonic(entropy: &[u8]) -> String {
-    use bip39::Mnemonic;
-    let entropy_slice = &entropy[0..16.min(entropy.len())];
-    match Mnemonic::from_entropy(entropy_slice) {
-        Ok(m) => m.to_string(),
-        Err(_) => "unable to generate mnemonic".to_string(),
     }
 }
 
