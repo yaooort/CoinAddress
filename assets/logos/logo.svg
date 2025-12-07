@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- 背景 -->
+  <defs>
+    <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f7931a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#40d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00bfff;stop-opacity:1" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- 背景圆 -->
+  <circle cx="256" cy="256" r="240" fill="url(#grad1)" opacity="0.15"/>
+  
+  <!-- 外圆环 -->
+  <circle cx="256" cy="256" r="230" fill="none" stroke="url(#grad1)" stroke-width="3" opacity="0.8"/>
+  
+  <!-- 中心几何形状 - 闪闪发光的钻石 -->
+  <g filter="url(#shadow)">
+    <!-- 外菱形 -->
+    <polygon points="256,80 400,256 256,432 112,256" fill="url(#grad1)" opacity="0.9"/>
+    
+    <!-- 内菱形 -->
+    <polygon points="256,140 340,256 256,372 172,256" fill="url(#grad2)" opacity="0.85"/>
+    
+    <!-- 中心星形 -->
+    <polygon points="256,180 280,240 340,260 280,280 256,340 232,280 172,260 232,240" 
+             fill="#ffffff" opacity="0.95"/>
+  </g>
+  
+  <!-- 闪光效果 -->
+  <circle cx="220" cy="200" r="8" fill="#ffffff" opacity="0.7">
+    <animate attributeName="opacity" values="0.7;0.3;0.7" dur="2s" repeatCount="indefinite"/>
+  </circle>
+  <circle cx="290" cy="220" r="6" fill="#ffffff" opacity="0.5">
+    <animate attributeName="opacity" values="0.5;0.2;0.5" dur="2.5s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- 环形动画 -->
+  <circle cx="256" cy="256" r="200" fill="none" stroke="url(#grad2)" stroke-width="2" 
+          opacity="0.3" stroke-dasharray="5,5">
+    <animateTransform attributeName="transform" type="rotate" 
+                      from="0 256 256" to="360 256 256" dur="20s" repeatCount="indefinite"/>
+  </circle>
+  
+  <!-- 文字 -->
+  <text x="256" y="450" font-family="Arial, sans-serif" font-size="36" font-weight="bold" 
+        text-anchor="middle" fill="url(#grad1)">
+    TRON VANITY
+  </text>
+  
+  <!-- 副标题 -->
+  <text x="256" y="480" font-family="Arial, sans-serif" font-size="12" 
+        text-anchor="middle" fill="#666666" letter-spacing="2">
+    ADDRESS GENERATOR
+  </text>
+</svg>

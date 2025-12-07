@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="256" height="256" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="iconGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#f7931a;stop-opacity:1" />
+    </linearGradient>
+    <linearGradient id="iconGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#40d4ff;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#00bfff;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+  
+  <!-- 背景 -->
+  <rect width="256" height="256" fill="#f0f0f0" rx="50"/>
+  
+  <!-- 主菱形 -->
+  <polygon points="128,40 200,128 128,216 56,128" fill="url(#iconGrad1)" opacity="0.9"/>
+  
+  <!-- 内菱形 -->
+  <polygon points="128,80 160,128 128,176 96,128" fill="url(#iconGrad2)" opacity="0.85"/>
+  
+  <!-- 星形中心 -->
+  <polygon points="128,100 140,125 165,135 140,145 128,170 116,145 91,135 116,125" 
+           fill="#ffffff" opacity="0.9"/>
+</svg>

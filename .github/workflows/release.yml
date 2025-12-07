@@ -1,0 +1,312 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+env:
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: 1
+
+jobs:
+  # 创建 Release
+  create-release:
+    name: Create Release
+    runs-on: ubuntu-latest
+    outputs:
+      upload_url: ${{ steps.create_release.outputs.upload_url }}
+      version: ${{ env.VERSION }}
+    steps:
+      - name: Get version from tag
+        id: tag_name
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ env.VERSION }}
+          release_name: Release ${{ env.VERSION }}
+          draft: false
+          prerelease: false
+
+  # Linux x86_64
+  build-linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-unknown-linux-gnu
+
+      - name: Build
+        run: |
+          cargo build --release --target x86_64-unknown-linux-gnu --bin tron-vanity
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/x86_64-unknown-linux-gnu/release/tron-vanity dist/
+          cd dist
+          tar -czf tron-vanity_${{ needs.create-release.outputs.version }}_linux-x86_64.tar.gz tron-vanity
+          ls -lh *.tar.gz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_linux-x86_64.tar.gz
+          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_linux-x86_64.tar.gz
+          asset_content_type: application/gzip
+
+  # Linux ARM64
+  build-linux-arm64:
+    name: Build Linux ARM64
+    runs-on: ubuntu-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-unknown-linux-gnu
+
+      - name: Install ARM64 toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-aarch64-linux-gnu
+
+      - name: Build
+        env:
+          CC_aarch64_unknown_linux_gnu: aarch64-linux-gnu-gcc
+          AR_aarch64_unknown_linux_gnu: aarch64-linux-gnu-ar
+        run: |
+          cargo build --release --target aarch64-unknown-linux-gnu --bin tron-vanity
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/aarch64-unknown-linux-gnu/release/tron-vanity dist/
+          cd dist
+          tar -czf tron-vanity_${{ needs.create-release.outputs.version }}_linux-arm64.tar.gz tron-vanity
+          ls -lh *.tar.gz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_linux-arm64.tar.gz
+          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_linux-arm64.tar.gz
+          asset_content_type: application/gzip
+
+  # macOS x86_64
+  build-macos-x86_64:
+    name: Build macOS x86_64
+    runs-on: macos-12
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-apple-darwin
+
+      - name: Build
+        run: |
+          cargo build --release --target x86_64-apple-darwin --bin tron-vanity
+
+      - name: Code Sign (optional)
+        run: |
+          codesign -s - target/x86_64-apple-darwin/release/tron-vanity || true
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/x86_64-apple-darwin/release/tron-vanity dist/
+          cd dist
+          tar -czf tron-vanity_${{ needs.create-release.outputs.version }}_macos-x86_64.tar.gz tron-vanity
+          ls -lh *.tar.gz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_macos-x86_64.tar.gz
+          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_macos-x86_64.tar.gz
+          asset_content_type: application/gzip
+
+  # macOS ARM64
+  build-macos-arm64:
+    name: Build macOS ARM64
+    runs-on: macos-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Build
+        run: |
+          cargo build --release --target aarch64-apple-darwin --bin tron-vanity
+
+      - name: Code Sign (optional)
+        run: |
+          codesign -s - target/aarch64-apple-darwin/release/tron-vanity || true
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp target/aarch64-apple-darwin/release/tron-vanity dist/
+          cd dist
+          tar -czf tron-vanity_${{ needs.create-release.outputs.version }}_macos-arm64.tar.gz tron-vanity
+          ls -lh *.tar.gz
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_macos-arm64.tar.gz
+          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_macos-arm64.tar.gz
+          asset_content_type: application/gzip
+
+  # Windows x86_64 (MSVC)
+  build-windows-x86_64:
+    name: Build Windows x86_64
+    runs-on: windows-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Build
+        run: |
+          cargo build --release --target x86_64-pc-windows-msvc --bin tron-vanity
+
+      - name: Create Package
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/x86_64-pc-windows-msvc/release/tron-vanity.exe dist/
+          cd dist
+          # 创建启动脚本
+          cat > run.bat << 'EOF'
+          @echo off
+          cd /d "%~dp0"
+          tron-vanity.exe
+          pause
+          EOF
+          cat > run-silent.bat << 'EOF'
+          @echo off
+          cd /d "%~dp0"
+          start tron-vanity.exe
+          EOF
+          # 打包
+          7z a tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.zip tron-vanity.exe run.bat run-silent.bat
+          ls -lh *.zip
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.zip
+          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_windows-x86_64.zip
+          asset_content_type: application/zip
+
+  # Windows ARM64 (MSVC)
+  build-windows-arm64:
+    name: Build Windows ARM64
+    runs-on: windows-latest
+    needs: create-release
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-pc-windows-msvc
+
+      - name: Build
+        run: |
+          cargo build --release --target aarch64-pc-windows-msvc --bin tron-vanity
+
+      - name: Create Package
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp target/aarch64-pc-windows-msvc/release/tron-vanity.exe dist/
+          cd dist
+          # 创建启动脚本
+          cat > run.bat << 'EOF'
+          @echo off
+          cd /d "%~dp0"
+          tron-vanity.exe
+          pause
+          EOF
+          cat > run-silent.bat << 'EOF'
+          @echo off
+          cd /d "%~dp0"
+          start tron-vanity.exe
+          EOF
+          # 打包
+          7z a tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.zip tron-vanity.exe run.bat run-silent.bat
+          ls -lh *.zip
+
+      - name: Upload Release Asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ needs.create-release.outputs.upload_url }}
+          asset_path: dist/tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.zip
+          asset_name: tron-vanity_${{ needs.create-release.outputs.version }}_windows-arm64.zip
+          asset_content_type: application/zip
+
+  # 发布完成通知
+  publish-complete:
+    name: Publish Complete
+    runs-on: ubuntu-latest
+    needs:
+      [
+        build-linux-x86_64,
+        build-linux-arm64,
+        build-macos-x86_64,
+        build-macos-arm64,
+        build-windows-x86_64,
+        build-windows-arm64,
+      ]
+    if: always()
+    steps:
+      - name: Check build status
+        run: |
+          echo "✅ All builds completed!"
+          echo "Release: ${{ needs.create-release.outputs.version }}"
+          echo "Download binaries from GitHub Release page"

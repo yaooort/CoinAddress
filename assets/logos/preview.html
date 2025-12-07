@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TRON Vanity - Logo 预览</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 60px;
+        }
+
+        h1 {
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .subtitle {
+            font-size: 18px;
+            opacity: 0.9;
+        }
+
+        .gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+            gap: 30px;
+            margin-bottom: 60px;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+        }
+
+        .card-title {
+            font-size: 24px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #333;
+        }
+
+        .card-description {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .preview {
+            background: #f5f5f5;
+            border-radius: 12px;
+            padding: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 250px;
+            margin-bottom: 20px;
+            border: 2px dashed #e0e0e0;
+        }
+
+        .preview img {
+            max-width: 100%;
+            max-height: 100%;
+            display: block;
+        }
+
+        .specs {
+            background: #f9f9f9;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 13px;
+            color: #666;
+        }
+
+        .specs-item {
+            margin: 8px 0;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .specs-label {
+            font-weight: 500;
+        }
+
+        .color-scheme {
+            margin-top: 60px;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .color-scheme h2 {
+            font-size: 32px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .colors {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+        }
+
+        .color-item {
+            text-align: center;
+        }
+
+        .color-box {
+            width: 100%;
+            height: 150px;
+            border-radius: 12px;
+            margin-bottom: 15px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border: 2px solid #eee;
+        }
+
+        .color-name {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 5px;
+            color: #333;
+        }
+
+        .color-code {
+            font-size: 13px;
+            color: #666;
+            font-family: 'Monaco', 'Courier New', monospace;
+            background: #f5f5f5;
+            padding: 8px 12px;
+            border-radius: 6px;
+            word-break: break-all;
+        }
+
+        .features {
+            margin-top: 60px;
+            background: white;
+            border-radius: 16px;
+            padding: 40px;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .features h2 {
+            font-size: 32px;
+            margin-bottom: 30px;
+            color: #333;
+        }
+
+        .feature-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+        }
+
+        .feature {
+            padding: 20px;
+            background: #f9f9f9;
+            border-radius: 12px;
+            border-left: 4px solid #ff6b35;
+        }
+
+        .feature-icon {
+            font-size: 32px;
+            margin-bottom: 10px;
+        }
+
+        .feature-title {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .feature-desc {
+            font-size: 13px;
+            color: #666;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            margin-top: 60px;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 32px;
+            }
+
+            .gallery {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header>
+            <h1>✨ TRON Vanity</h1>
+            <p class="subtitle">Professional TRON Address Generator - Logo & Brand Kit</p>
+        </header>
+
+        <div class="gallery">
+            <!-- Main Logo -->
+            <div class="card">
+                <div class="card-title">🎨 主Logo</div>
+                <div class="card-description">完整的品牌Logo，包含动画效果，用于网站、文档和社交媒体</div>
+                <div class="preview">
+                    <svg width="200" height="200" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#f7931a;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="grad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#40d4ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#00bfff;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <circle cx="256" cy="256" r="240" fill="url(#grad1)" opacity="0.15" />
+                        <circle cx="256" cy="256" r="230" fill="none" stroke="url(#grad1)" stroke-width="3"
+                            opacity="0.8" />
+                        <polygon points="256,80 400,256 256,432 112,256" fill="url(#grad1)" opacity="0.9" />
+                        <polygon points="256,140 340,256 256,372 172,256" fill="url(#grad2)" opacity="0.85" />
+                        <polygon points="256,180 280,240 340,260 280,280 256,340 232,280 172,260 232,240" fill="#ffffff"
+                            opacity="0.95" />
+                    </svg>
+                </div>
+                <div class="specs">
+                    <div class="specs-item">
+                        <span class="specs-label">尺寸：</span> 512x512px
+                    </div>
+                    <div class="specs-item">
+                        <span class="specs-label">格式：</span> SVG (可扩展)
+                    </div>
+                    <div class="specs-item">
+                        <span class="specs-label">特性：</span> 动画效果
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Icon -->
+            <div class="card">
+                <div class="card-title">📱 应用图标</div>
+                <div class="card-description">简洁的应用图标，适用于桌面快捷方式、菜单栏等</div>
+                <div class="preview">
+                    <svg width="200" height="200" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="iconGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#f7931a;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="iconGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#40d4ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#00bfff;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="256" height="256" fill="#f0f0f0" rx="50" />
+                        <polygon points="128,40 200,128 128,216 56,128" fill="url(#iconGrad1)" opacity="0.9" />
+                        <polygon points="128,80 160,128 128,176 96,128" fill="url(#iconGrad2)" opacity="0.85" />
+                        <polygon points="128,100 140,125 165,135 140,145 128,170 116,145 91,135 116,125" fill="#ffffff"
+                            opacity="0.9" />
+                    </svg>
+                </div>
+                <div class="specs">
+                    <div class="specs-item">
+                        <span class="specs-label">尺寸：</span> 256x256px
+                    </div>
+                    <div class="specs-item">
+                        <span class="specs-label">格式：</span> SVG
+                    </div>
+                    <div class="specs-item">
+                        <span class="specs-label">用途：</span> 应用图标
+                    </div>
+                </div>
+            </div>
+
+            <!-- Favicon -->
+            <div class="card">
+                <div class="card-title">🔗 Favicon</div>
+                <div class="card-description">网站标签栏图标，浏览器书签和收藏夹显示</div>
+                <div class="preview">
+                    <svg width="150" height="150" viewBox="0 0 256 256" xmlns="http://www.w3.org/2000/svg">
+                        <defs>
+                            <linearGradient id="faviconGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#ff6b35;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#f7931a;stop-opacity:1" />
+                            </linearGradient>
+                            <linearGradient id="faviconGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                                <stop offset="0%" style="stop-color:#40d4ff;stop-opacity:1" />
+                                <stop offset="100%" style="stop-color:#00bfff;stop-opacity:1" />
+                            </linearGradient>
+                        </defs>
+                        <rect width="256" height="256" fill="#ffffff" />
+                        <polygon points="128,30 210,128 128,226 46,128" fill="url(#faviconGrad1)" />
+                        <polygon points="128,80 170,128 128,176 86,128" fill="url(#faviconGrad2)" />
+                        <circle cx="128" cy="128" r="15" fill="#ffffff" />
+                    </svg>
+                </div>
+                <div class="specs">
+                    <div class="specs-item">
+                        <span class="specs-label">尺寸：</span> 64x64px
+                    </div>
+                    <div class="specs-item">
+                        <span class="specs-label">格式：</span> SVG
+                    </div>
+                    <div class="specs-item">
+                        <span class="specs-label">用途：</span> 网站标签栏
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="color-scheme">
+            <h2>🎨 颜色方案</h2>
+            <div class="colors">
+                <div class="color-item">
+                    <div class="color-box" style="background: linear-gradient(135deg, #ff6b35 0%, #f7931a 100%);"></div>
+                    <div class="color-name">主色 (Orange)</div>
+                    <div class="color-code">#ff6b35<br />RGB(255, 107, 53)</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-box" style="background: linear-gradient(135deg, #40d4ff 0%, #00bfff 100%);"></div>
+                    <div class="color-name">副色 (Cyan)</div>
+                    <div class="color-code">#40d4ff<br />RGB(64, 212, 255)</div>
+                </div>
+                <div class="color-item">
+                    <div class="color-box" style="background: linear-gradient(135deg, #f7931a 0%, #ff6b35 100%);"></div>
+                    <div class="color-name">强调 (Gold)</div>
+                    <div class="color-code">#f7931a<br />RGB(247, 147, 26)</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="features">
+            <h2>✨ Logo 设计特性</h2>
+            <div class="feature-grid">
+                <div class="feature">
+                    <div class="feature-icon">🎬</div>
+                    <div class="feature-title">动画效果</div>
+                    <div class="feature-desc">包含闪光和旋转动画，提升品牌活力</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📐</div>
+                    <div class="feature-title">几何设计</div>
+                    <div class="feature-desc">菱形和星形元素，代表精准和闪耀</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🎨</div>
+                    <div class="feature-title">渐变色彩</div>
+                    <div class="feature-desc">现代渐变设计，视觉效果专业</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">📦</div>
+                    <div class="feature-title">多格式支持</div>
+                    <div class="feature-desc">SVG 矢量格式，完全可扩展</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">♿</div>
+                    <div class="feature-title">可访问性</div>
+                    <div class="feature-desc">符合WCAG标准，清晰可识别</div>
+                </div>
+                <div class="feature">
+                    <div class="feature-icon">🌐</div>
+                    <div class="feature-title">多场景应用</div>
+                    <div class="feature-desc">适用于网站、应用、社交媒体</div>
+                </div>
+            </div>
+        </div>
+
+        <footer>
+            <p>© 2024 TRON Vanity - Professional Address Generator</p>
+            <p>Logo Generated on 2024-12-07</p>
+        </footer>
+    </div>
+</body>
+
+</html>

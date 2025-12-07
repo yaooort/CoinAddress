@@ -1,0 +1,61 @@
+[package]
+name = "tron-vanity"
+version = "0.2.0"
+edition = "2021"
+authors = ["TRON Developer"]
+
+[[bin]]
+name = "tron-vanity-cli"
+path = "src/cli.rs"
+
+[[bin]]
+name = "tron-vanity"
+path = "src/gui.rs"
+
+[dependencies]
+# 密码学和哈希
+sha2 = "0.10"
+ripemd = "0.1"
+k256 = { version = "0.13", features = ["std"] }
+rand = "0.8"
+hex = "0.4"
+
+# Bip39 助记词
+bip39 = "2.2"
+hmac = "0.12"
+
+# Base58编码
+bs58 = "0.5"
+
+# 多线程和并发
+rayon = "1.7"
+parking_lot = "0.12"
+
+# CLI和输出
+colored = "2.1"
+chrono = "0.4"
+
+# 序列化
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 性能
+num_cpus = "1.16"
+
+# GUI - 使用 iced
+iced = { version = "0.12", features = ["debug", "tokio"] }
+
+# 系统监控
+sysinfo = "0.30"
+
+# 异步运行时
+tokio = { version = "1.35", features = ["full"] }
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
+
+[profile.dev]
+opt-level = 1
