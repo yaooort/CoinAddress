@@ -4,11 +4,16 @@ use chrono::Local;
 use ed25519_dalek::{PublicKey, SecretKey};
 use k256::elliptic_curve::sec1::ToEncodedPoint;
 use rand::RngCore;
+use rust_embed::RustEmbed;
 use ripemd::Ripemd160;
 use sha2::{Digest, Sha256};
 use tiny_keccak::{Hasher, Keccak};
 
 pub mod monitor;
+
+#[derive(RustEmbed)]
+#[folder = "assets"]
+pub struct Assets;
 
 /// 支持的链类型
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

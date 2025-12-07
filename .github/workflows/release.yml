@@ -242,7 +242,10 @@ jobs:
       - name: Install WiX
         run: |
           dotnet tool install --global wix
-          wix extension add WixUI.wixext
+          # Ensure the newly installed wix tool is on PATH for this step
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          wix --version
+          wix extension add WixToolset.UI.wixext
         shell: pwsh
 
       - name: Create MSI Installer
@@ -310,7 +313,10 @@ jobs:
       - name: Install WiX
         run: |
           dotnet tool install --global wix
-          wix extension add WixUI.wixext
+          # Ensure the newly installed wix tool is on PATH for this step
+          $env:PATH += ";$env:USERPROFILE\.dotnet\tools"
+          wix --version
+          wix extension add WixToolset.UI.wixext
         shell: pwsh
 
       - name: Create MSI Installer

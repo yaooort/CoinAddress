@@ -2,6 +2,12 @@
 
 Rust 实现的多链靓号地址生成器，支持 TRON、EVM（以太坊兼容）、Solana，输出地址 / 公钥 / 私钥 / BIP39 助记词，含 GUI 与 CLI。
 
+## 下载与更新
+
+- 点击下方按钮跳转到 GitHub Releases，获取已编译的自动更新包（DMG / DEB / MSI）。
+
+[![Download Latest Release](https://img.shields.io/github/v/release/yaooort/CoinAddress?label=%E4%B8%8B%E8%BD%BD%E6%9C%80%E6%96%B0%E7%89%88&logo=github)](https://github.com/yaooort/CoinAddress/releases/latest)
+
 ## 功能特性 ✨
 
 - **多链支持**：TRON（Base58check / 0x41 前缀）、EVM（0x 开头 keccak 后 20 字节）、Solana（ed25519 / Base58）

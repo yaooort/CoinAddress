@@ -5,7 +5,7 @@ use iced::widget::canvas::{self, path, Canvas};
 use iced::{
     executor, theme,
     widget::{
-        button, column, container, pick_list, progress_bar, row, text, text_input, Container,
+        button, column, container, pick_list, progress_bar, row, svg, text, text_input, Container,
     },
     Alignment, Application, Border, Color, Command, Element, Font, Length, Settings, Size, Theme,
 };
@@ -18,6 +18,7 @@ use std::time::{Duration, Instant};
 
 use tron_vanity::monitor::SystemMonitor;
 use tron_vanity::*;
+use tron_vanity::Assets;
 
 // 中文字体（根据平台选择系统字体）
 #[cfg(target_os = "macos")]
@@ -39,6 +40,14 @@ fn card_bg() -> Color {
 
 fn surface_bg() -> Color {
     Color::from_rgb8(16, 18, 28)
+}
+
+fn load_logo() -> svg::Handle {
+    if let Some(file) = Assets::get("logos/logo.svg") {
+        return svg::Handle::from_memory(file.data);
+    }
+    // 回退为空 handle，避免 panic
+    svg::Handle::from_memory(Vec::<u8>::new())
 }
 
 pub struct VanityApp {
@@ -81,6 +90,9 @@ pub struct VanityApp {
 
     // 最近发现的靓号（用于手动保存）
     last_found: Option<VanityAddress>,
+
+    // 内嵌 logo 资源
+    logo_handle: svg::Handle,
 }
 
 impl Default for VanityApp {
@@ -110,6 +122,7 @@ impl Default for VanityApp {
             found_count: Arc::new(AtomicU64::new(0)),
             vanity_cache: Arc::new(Mutex::new(None)),
             last_found: None,
+            logo_handle: load_logo(),
         }
     }
 }
@@ -352,6 +365,9 @@ impl Application for VanityApp {
         const CHAINS: [ChainType; 3] = [ChainType::Tron, ChainType::Evm, ChainType::Sol];
 
         let header = row![
+            svg(self.logo_handle.clone())
+                .width(Length::Fixed(40.0))
+                .height(Length::Fixed(40.0)),
             column![
                 text("多链靓号工坊")
                     .size(30)
