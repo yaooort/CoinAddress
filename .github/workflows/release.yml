@@ -288,6 +288,14 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         shell: pwsh
 
+      - name: Upload Standalone EXE
+        run: |
+          $VERSION = "${{ needs.create-release.outputs.version }}"
+          gh release upload "$VERSION" "dist/tron-vanity.exe" --clobber
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: pwsh
+
   # Windows ARM64 MSI
   build-windows-arm64:
     name: Build Windows ARM64 MSI
