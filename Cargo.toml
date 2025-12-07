@@ -24,7 +24,7 @@ hex = "0.4"
 bip39 = "2.2"
 hmac = "0.12"
 pbkdf2 = "0.12"
-bip32 = "0.5"
+bip32 = { version = "0.5", features = ["secp256k1"] }
 
 # Base58编码
 bs58 = "0.5"

@@ -65,13 +65,70 @@ fn mnemonic_to_seed(mnemonic: &str, password: &str) -> [u8; 64] {
     seed
 }
 
-/// 从种子派生 secp256k1 私钥（简化的 BIP32 m/44'/195'/0'/0/0 路径用于 TRON）
-fn derive_private_key_from_seed(seed: &[u8; 64]) -> [u8; 32] {
-    // 简化版：使用种子的前32字节作为私钥
-    // 注意：这不是完整的 BIP44 实现，但对于靓号生成已足够
+/// 从种子派生 secp256k1 私钥（BIP44 标准派生）
+fn derive_private_key_from_seed_bip44(seed: &[u8; 64], coin_type: u32) -> [u8; 32] {
+    use hmac::{Hmac, Mac};
+    use sha2::Sha512;
+    
+    // BIP32 主密钥派生
+    let mut mac = Hmac::<Sha512>::new_from_slice(b"Bitcoin seed").expect("valid key");
+    mac.update(seed);
+    let result = mac.finalize().into_bytes();
+    
     let mut key = [0u8; 32];
-    key.copy_from_slice(&seed[0..32]);
+    key.copy_from_slice(&result[0..32]);
+    let mut chain_code = [0u8; 32];
+    chain_code.copy_from_slice(&result[32..64]);
+    
+    // BIP44 路径: m/44'/coin_type'/0'/0/0
+    // 依次派生每一层
+    let path = [
+        0x8000002C, // 44' (hardened)
+        0x80000000 | coin_type, // coin_type' (hardened)
+        0x80000000, // 0' (hardened)
+        0,          // 0 (normal)
+        0,          // 0 (normal)
+    ];
+    
+    for &index in &path {
+        let mut data = Vec::new();
+        if index >= 0x80000000 {
+            // 硬化派生
+            data.push(0);
+            data.extend_from_slice(&key);
+        } else {
+            // 普通派生 - 需要公钥
+            use k256::SecretKey;
+            let sk = SecretKey::from_slice(&key).expect("valid key");
+            let pk = sk.public_key().to_encoded_point(true); // compressed
+            data.extend_from_slice(pk.as_bytes());
+        }
+        data.extend_from_slice(&index.to_be_bytes());
+        
+        let mut mac = Hmac::<Sha512>::new_from_slice(&chain_code).expect("valid key");
+        mac.update(&data);
+        let result = mac.finalize().into_bytes();
+        
+        key.copy_from_slice(&result[0..32]);
+        chain_code.copy_from_slice(&result[32..64]);
+    }
+    
     key
+}
+
+/// 从种子派生 TRON 私钥（m/44'/195'/0'/0/0）
+fn derive_tron_private_key(seed: &[u8; 64]) -> [u8; 32] {
+    derive_private_key_from_seed_bip44(seed, 195) // TRON coin type = 195
+}
+
+/// 从种子派生 EVM 私钥（m/44'/60'/0'/0/0）
+fn derive_evm_private_key(seed: &[u8; 64]) -> [u8; 32] {
+    derive_private_key_from_seed_bip44(seed, 60) // Ethereum coin type = 60
+}
+
+/// 从种子派生 Solana 私钥（m/44'/501'/0'/0'）
+fn derive_sol_private_key(seed: &[u8; 64]) -> [u8; 32] {
+    derive_private_key_from_seed_bip44(seed, 501) // Solana coin type = 501
 }
 
 /// 生成随机助记词
@@ -137,8 +194,8 @@ pub fn generate_tron_address() -> VanityAddress {
     // 2. 从助记词派生种子
     let seed = mnemonic_to_seed(&mnemonic, "");
     
-    // 3. 从种子派生私钥
-    let private_key = derive_private_key_from_seed(&seed);
+    // 3. 从种子派生 TRON 私钥 (BIP44 m/44'/195'/0'/0/0)
+    let private_key = derive_tron_private_key(&seed);
     
     // 4. 从私钥生成公钥和地址
     let public_key = private_key_to_public_key(&private_key);
@@ -161,8 +218,8 @@ pub fn generate_evm_address() -> VanityAddress {
     // 2. 从助记词派生种子
     let seed = mnemonic_to_seed(&mnemonic, "");
     
-    // 3. 从种子派生私钥
-    let private_key = derive_private_key_from_seed(&seed);
+    // 3. 从种子派生 EVM 私钥 (BIP44 m/44'/60'/0'/0/0)
+    let private_key = derive_evm_private_key(&seed);
     
     // 4. 从私钥生成公钥和地址
     let public_key = private_key_to_public_key(&private_key);
@@ -192,9 +249,8 @@ pub fn generate_sol_address() -> VanityAddress {
     // 2. 从助记词派生种子
     let seed_64 = mnemonic_to_seed(&mnemonic, "");
     
-    // 3. 从种子派生私钥（Solana 使用 ed25519）
-    let mut seed = [0u8; 32];
-    seed.copy_from_slice(&seed_64[0..32]);
+    // 3. 从种子派生 Solana 私钥 (BIP44 m/44'/501'/0'/0/0)
+    let seed = derive_sol_private_key(&seed_64);
 
     let secret = SecretKey::from_bytes(&seed).expect("valid seed");
     let public: PublicKey = (&secret).into();
