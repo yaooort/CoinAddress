@@ -47,7 +47,7 @@ serde_json = "1.0"
 num_cpus = "1.16"
 
 # GUI - 使用 iced
-iced = { version = "0.12", features = ["debug", "tokio", "canvas"] }
+iced = { version = "0.12", features = ["debug", "tokio", "canvas", "svg"] }
 rfd = "0.14"
 
 # 系统监控
